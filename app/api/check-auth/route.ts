@@ -1,20 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import connectDB from '../../../../lib/database'
-import { User } from '../../../../models/User'
-import bcrypt from 'bcryptjs'
-import { generateToken } from '../../../../utils/generateToken'
-import { createSuccessResponse, createErrorResponse } from '../../../../utils/response'
+import connectDB from '../../../lib/database'
+import { User } from '../../../models/User'
+import { generateToken } from '../../../utils/generateToken'
+import { createSuccessResponse, createErrorResponse } from '../../../utils/response'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { identifier, password } = body
+    const { email } = body
 
     /* ---------- Validation ---------- */
 
-    if (!identifier || !password) {
+    if (!email) {
       return NextResponse.json(
-        createErrorResponse('Email and password are required'),
+        createErrorResponse('Email is required'),
         { status: 400 }
       )
     }
@@ -24,8 +23,8 @@ export async function POST(request: NextRequest) {
     /* ---------- Find user ---------- */
 
     const user = await User.findOne({
-      email: identifier.toLowerCase()
-    }).select('+password authProviders role')
+      email: email.toLowerCase()
+    }).select('authProviders role email name')
 
     if (!user) {
       return NextResponse.json(
@@ -34,23 +33,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    /* ---------- PASSWORD CHECK (FIRST) ---------- */
-
-    const isMatch = await bcrypt.compare(password, user.password)
-
-    if (!isMatch) {
-      return NextResponse.json(
-        createErrorResponse('Invalid credentials'),
-        { status: 401 }
-      )
-    }
-
-    /* ---------- AUTH PROVIDER CHECK (AFTER PASSWORD) ---------- */
+    /* ---------- AUTH PROVIDER CHECK ---------- */
 
     const hasGithub = !!user.authProviders?.github?.id
     const hasGoogle = !!user.authProviders?.google?.id
 
-    // 🔥 GitHub missing
+    // 🔥 GitHub not linked
     if (!hasGithub) {
       return NextResponse.json(
         {
@@ -62,7 +50,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 🔥 Google missing
+    // 🔥 Google not linked
     if (!hasGoogle) {
       return NextResponse.json(
         {
@@ -74,7 +62,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    /* ---------- Generate token ---------- */
+    /* ---------- GENERATE NEW TOKEN ---------- */
 
     const token = generateToken({
       userId: user._id,
@@ -83,20 +71,19 @@ export async function POST(request: NextRequest) {
     })
 
     const userResponse = user.toObject()
-    delete userResponse.password
 
     return NextResponse.json(
       createSuccessResponse(
         {
           user: userResponse,
-          token
+          token // 👈 NEW token
         },
-        'Login successful'
+        'Auth verified'
       ),
       { status: 200 }
     )
   } catch (error) {
-    console.error('Signin error:', error)
+    console.error('Check-auth error:', error)
 
     return NextResponse.json(
       createErrorResponse('Internal server error'),

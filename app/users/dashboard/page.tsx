@@ -18,36 +18,54 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const { theme } = useTheme();
 
-  useEffect(() => {
-    const checkAuth = () => {
-      try {
-        // Check if token exists in cookies
-        const token = Cookies.get('token');
-        const userCookie = Cookies.get('user');
+useEffect(() => {
+  const checkAuth = async () => {
+    try {
+      const token = Cookies.get('token');
+      const userCookie = Cookies.get('user');
 
-        if (!token) {
-          // Redirect to login if no token
-          router.push('/landing/auth/login');
-          return;
-        }
-
-        // If user data exists in cookies, use it
-        if (userCookie) {
-          const userData = JSON.parse(userCookie);
-          
-          setUser(userData);
-        }
-      } catch (error) {
-        console.error('Auth check error:', error);
-        // Redirect to login on error
+      // ❌ No token → login
+      if (!token || !userCookie) {
         router.push('/landing/auth/login');
-      } finally {
-        setLoading(false);
+        return;
       }
-    };
 
-    checkAuth();
-  }, [router]);
+      const userData = JSON.parse(userCookie);
+
+      // 🔥 CALL CHECK-AUTH ROUTE
+      const response = await fetch('/api/auth/check-auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`, // optional but recommended
+        },
+        body: JSON.stringify({
+          email: userData.email, // 👈 email pass
+        }),
+      });
+
+      const data = await response.json();
+
+      // ❌ Invalid / expired token
+      if (!response.ok || !data.success) {
+        Cookies.remove('token');
+        Cookies.remove('user');
+        router.push('/landing/auth/login');
+        return;
+      }
+
+      // ✅ Auth valid
+      setUser(data.data.user); // backend se fresh user
+    } catch (error) {
+      console.error('Auth check error:', error);
+      router.push('/landing/auth/login');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  checkAuth();
+}, [router]);
 
   if (loading) {
     return (

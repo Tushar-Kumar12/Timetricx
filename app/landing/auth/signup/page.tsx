@@ -11,7 +11,6 @@ function SignupContent() {
   const { success, error, info } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showGoogleModal, setShowGoogleModal] = useState(false);
@@ -39,7 +38,8 @@ function SignupContent() {
         // Store user data and token in cookies
         Cookies.set('user', decodeURIComponent(user), { expires: 365 });
         Cookies.set('token', token, { expires: 365 });
-        setShowSuccessModal(true);
+        // Redirect to users dashboard after OAuth success
+        window.location.href = '/users';
       } catch (error) {
         console.error('Error storing OAuth data:', error);
       }
@@ -76,6 +76,21 @@ try {
   const data = await response.json();
 
   /* ✅ SUCCESS CASE */
+  
+
+  /* 🔥 GITHUB CONNECT REQUIRED */
+  if (data.action === 'github') {
+    setSignupEmail(email);
+    setShowProfileModal(true); // 👈 GitHub modal
+    return;
+  }
+
+  /* 🔥 GOOGLE CONNECT REQUIRED */
+  if (data.action === 'google') {
+    setSignupEmail(email);
+    setShowGoogleModal(true); // 👈 Google modal
+    return;
+  }
   if (response.ok && data.success) {
     Cookies.set('user', JSON.stringify(data.data.user), { expires: 365 });
     Cookies.set('token', data.data.token, { expires: 365 });
@@ -87,18 +102,10 @@ try {
     return;
   }
 
-  /* 🔥 GOOGLE CONNECT REQUIRED CASE */
-  if (data.code === 'GOOGLE_CONNECT_REQUIRED') {
-    // user already exists but google not linked
-    setSignupEmail(email);
-    setShowGoogleModal(true); // 👈 GOOGLE CONNECT MODAL
-    return;
-  }
+  /* ❌ USER ALREADY EXISTS / OTHER ERRORS */
+  error(data.message || 'User already exists');
 
-  /* ❌ OTHER ERRORS */
-  error(data.message || 'Signup failed');
-
-} catch (error) {
+} catch (err) {
   error('Signup failed. Please try again.');
 } finally {
   setIsLoading(false);
@@ -443,115 +450,6 @@ const handleOtpChange = (index: number, value: string) => {
         </div>
       </div>
 
-      {/* SUCCESS MODAL */}
-{showSuccessModal && (
-  <div className="fixed inset-0 z-50 
-    bg-black/60 backdrop-blur-md 
-    flex items-center justify-center p-4">
-
-    {/* OUTER CURVED CARD (SAME AS RIGHT PANEL) */}
-    <div
-      className="relative w-full md:w-1/2 
-      p-6 text-white 
-      bg-gradient-to-br from-black 
-      via-[#121629] to-[#050816] 
-      rounded-2xl shadow-2xl"
-
-      style={{
-        clipPath: "url(#rightCurveSignup)",
-      }}
-    >
-
-      {/* INNER GLASS CARD */}
-      <div className="
-        bg-transparent backdrop-blur-xl
-        border border-white/20
-        rounded-2xl shadow-xl  w-120
-        p-8">
-
-        <h2 className="text-2xl font-bold text-white mb-6 text-center">
-          Complete Your Profile
-        </h2>
-
-        <div className="space-y-4">
-
-          <div>
-            <label className="block text-sm text-white/80 mb-2">
-              Full Name
-            </label>
-            <input
-              type="text"
-              placeholder="Enter your full name"
-              value={userData.fullName}
-              onChange={(e) =>
-                setUserData({ ...userData, fullName: e.target.value })
-              }
-              className="
-                w-full px-4 py-3 rounded-lg 
-                bg-black/30 border border-white/20 
-                text-white placeholder-white/40
-                focus:outline-none focus:ring-2 focus:ring-[#0b5fffbf]"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm text-white/80 mb-2">
-              Profile Picture
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleProfilePictureUpload}
-              className="
-                w-full px-4 py-3 rounded-lg 
-                bg-black/30 border border-white/20 
-                text-white"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm text-white/80 mb-2">
-              GitHub ID
-            </label>
-            <input
-              type="text"
-              placeholder="Enter your GitHub username"
-              value={userData.githubId}
-              onChange={(e) =>
-                setUserData({ ...userData, githubId: e.target.value })
-              }
-              className="
-                w-full px-4 py-3 rounded-lg 
-                bg-black/30 border border-white/20 
-                text-white placeholder-white/40"
-            />
-          </div>
-
-          <button
-            onClick={handleModalSubmit}
-            disabled={isProfileLoading}
-            className="
-              w-full py-3 rounded-lg 
-              bg-gradient-to-r from-[#0b5fffbf] to-[#3b82f680] 
-              text-black font-semibold
-              hover:from-[#0b5fffbf] hover:to-[#3b82f680] 
-              transition-all flex items-center justify-center gap-2"
-          >
-            {isProfileLoading ? (
-              <>
-                <Loading size="small" color="#000" />
-                Submitting...
-              </>
-            ) : (
-              'Add & Continue'
-            )}
-          </button>
-
-        </div>
-      </div>
-    </div>
-  </div>
-)}
 
       {/* OTP VERIFICATION MODAL */}
 {showOtpModal && (
@@ -680,15 +578,22 @@ const handleOtpChange = (index: number, value: string) => {
             <label className="block text-sm text-white/80 mb-2">
               Profile Picture
             </label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleProfilePictureUpload}
-              className="
-                w-full px-4 py-3 rounded-lg 
-                bg-black/30 border border-white/20 
-                text-white"
-            />
+            <div className="flex gap-2">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleProfilePictureUpload}
+                className="
+                  flex-1 px-4 py-3 rounded-lg 
+                  bg-black/30 border border-white/20 
+                  text-white file:mr-4 file:py-2 file:px-4
+                  file:rounded-full file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-blue-600 file:text-white
+                  hover:file:bg-blue-700"
+              />
+              
+            </div>
           </div>
 
           <div>
