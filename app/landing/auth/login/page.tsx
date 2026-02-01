@@ -76,7 +76,6 @@ const handleEmailLogin = async () => {
       
       if (savedUser && savedToken) {
         success('Login successful! Cookies saved. Redirecting...');
-        alert('Cookies saved:' + JSON.stringify({ user: savedUser, token: savedToken }));
         
         // Redirect after showing alert
         setTimeout(() => {
@@ -445,7 +444,10 @@ const handleProfilePictureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
               <button 
                 className="w-full py-3 rounded-full 
                   bg-gradient-to-r from-[#0b5fffbf] to-[#3b82f680] 
-                  text-black font-semibold flex items-center justify-center gap-2"
+                  text-black font-semibold flex items-center justify-center gap-2
+                  transition-all duration-300 transform hover:scale-105 hover:shadow-lg
+                  hover:from-[#0b5fff] hover:to-[#3b82f6]
+                  active:scale-95"
                 onClick={handleEmailLogin}
                 disabled={isLoading}>
                 {isLoading ? (
