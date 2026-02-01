@@ -76,7 +76,17 @@ try {
   const data = await response.json();
 
   /* ✅ SUCCESS CASE */
-  
+  if (response.ok && data.success) {
+    Cookies.set('user', JSON.stringify(data.data.user), { expires: 365 });
+    Cookies.set('token', data.data.token, { expires: 365 });
+
+    success('Signup successful! Please verify your email');
+    setSignupEmail(email);
+    setUserToken(data.data.token);
+    setShowOtpModal(true);
+    return;
+  }
+
 
   /* 🔥 GITHUB CONNECT REQUIRED */
   if (data.action === 'github') {
@@ -91,17 +101,7 @@ try {
     setShowGoogleModal(true); // 👈 Google modal
     return;
   }
-  if (response.ok && data.success) {
-    Cookies.set('user', JSON.stringify(data.data.user), { expires: 365 });
-    Cookies.set('token', data.data.token, { expires: 365 });
-
-    success('Signup successful! Please verify your email');
-    setSignupEmail(email);
-    setUserToken(data.data.token);
-    setShowOtpModal(true);
-    return;
-  }
-
+  
   /* ❌ USER ALREADY EXISTS / OTHER ERRORS */
   error(data.message || 'User already exists');
 

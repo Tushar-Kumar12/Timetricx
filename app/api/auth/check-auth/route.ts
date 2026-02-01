@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import connectDB from '../../../lib/database'
-import { User } from '../../../models/User'
-import { createSuccessResponse, createErrorResponse } from '../../../utils/response'
+import connectDB from '../../../../lib/database'
+import { User } from '../../../../models/User'
+import { createSuccessResponse, createErrorResponse } from '../../../../utils/response'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { email } = body
+    console.log('Email:', email)
 
     /* ---------- Validation ---------- */
     if (!email) {
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     await connectDB()
-
+    console.log('Database connected')
     /* ---------- Find user ---------- */
     const user = await User.findOne({
       email: email.toLowerCase(),
@@ -32,13 +33,13 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       )
     }
-
+    console.log('User found:', user)
     /* ---------- AUTH PROVIDER CHECK ---------- */
     const hasGithub = !!user.authProviders?.github?.id
     const hasGoogle = !!user.authProviders?.google?.id
 
-    // ❌ Agar koi bhi provider linked nahi hai
-    if (!hasGithub && !hasGoogle) {
+    // ❌ Agar dono linked nahi hain
+    if (!hasGithub || !hasGoogle) {
       return NextResponse.json(
         {
           success: false,
@@ -50,8 +51,8 @@ export async function POST(request: NextRequest) {
         { status: 200 }
       )
     }
-
-    /* ---------- ANY PROVIDER LINKED ---------- */
+    console.log('Both providers linked')
+    /* ---------- BOTH PROVIDERS LINKED ---------- */
     return NextResponse.json(
       createSuccessResponse(
         {
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-
+console.log('Check-auth route loaded')
 /* ---------- Block other methods ---------- */
 export async function GET() {
   return NextResponse.json(

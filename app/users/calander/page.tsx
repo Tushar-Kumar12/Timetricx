@@ -1,5 +1,4 @@
 'use client'
-
 import { useEffect, useState } from 'react'
 import Cookies from 'js-cookie'
 import { useRouter } from 'next/navigation'
@@ -20,74 +19,79 @@ export default function CalendarPage() {
   const [user, setUser] = useState<any>(null);
 
   // Authentication check
-useEffect(() => {
-  const checkAuth = async () => {
-    try {
-      const token = Cookies.get('token');
-      const userCookie = Cookies.get('user');
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = Cookies.get('token');
+        const userCookie = Cookies.get('user');
 
-      // ❌ No token → login
-      if (!token || !userCookie) {
+        // ❌ Token ya user cookie missing → login
+        if (!token || !userCookie) {
+          router.push('/landing/auth/login');
+          return;
+        }
+
+        // ✅ Cookie se email nikaalo
+        const userData = JSON.parse(userCookie);
+        const email = userData?.email;
+
+        if (!email) {
+          
+          router.push('/landing/auth/login');
+          return;
+        }
+
+        // 🔥 CALL CHECK-AUTH ROUTE
+        const response = await fetch('/api/auth/check-auth', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`, // optional
+          },
+          body: JSON.stringify({ email }), // 👈 cookies ka user.email
+        });
+
+        const data = await response.json();
+
+        // ❌ Auth invalid (providers missing / user not found)
+        if (!response.ok || !data.success) {
+          router.push('/landing/auth/login');
+          return;
+        }
+
+        // ✅ Auth valid → fresh user set
+        setUser(data.data.user);
+
+      } catch (error) {
+        console.error('Auth check error:', error);
         router.push('/landing/auth/login');
-        return;
+      } finally {
+        setLoading(false);
       }
+    };
 
-      const userData = JSON.parse(userCookie);
+    checkAuth();
+  }, [router]);
 
-      // 🔥 CALL CHECK-AUTH ROUTE
-      const response = await fetch('/api/auth/check-auth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`, // optional but recommended
-        },
-        body: JSON.stringify({
-          email: userData.email, // 👈 email pass
-        }),
-      });
 
-      const data = await response.json();
-
-      // ❌ Invalid / expired token
-      if (!response.ok || !data.success) {
-        Cookies.remove('token');
-        Cookies.remove('user');
-        router.push('/landing/auth/login');
-        return;
-      }
-
-      // ✅ Auth valid
-      setUser(data.data.user); // backend se fresh user
-    } catch (error) {
-      console.error('Auth check error:', error);
-      router.push('/landing/auth/login');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  checkAuth();
-}, [router]);
 
   useEffect(() => {
     fetchAttendance()
   }, [currentDate])
 
+
+
   const fetchAttendance = async () => {
     try {
       const userCookie = Cookies.get("user")
       if (!userCookie) return
-
       const user = JSON.parse(userCookie)
-
       const year = currentDate.getFullYear()
       const month = currentDate.getMonth() + 1
-
       const res = await fetch(
         `/api/attendance/get-calendar-attendance?email=${user.email}&year=${year}&month=${month}`
       )
       const result = await res.json()
-
       if (result.success) {
         setRecords(result.data.records || [])
       }
@@ -98,6 +102,8 @@ useEffect(() => {
     }
   }
 
+
+
   const getDaysInMonth = (date: Date) =>
     new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
 
@@ -106,83 +112,58 @@ useEffect(() => {
 
   // 🔥 STATUS LOGIC
   const getStatus = (day: number) => {
-
     const year = currentDate.getFullYear()
     const month = currentDate.getMonth()
-
     const cellDate = new Date(year, month, day)
     const today = new Date()
-
     cellDate.setHours(0,0,0,0)
     today.setHours(0,0,0,0)
-
     const dateStr =
       `${year}-${(month+1).toString().padStart(2,'0')}-${day
         .toString()
         .padStart(2,'0')}`
-
     const record = records.find(r => r.date === dateStr)
-
-    // FUTURE
     if(cellDate > today){
       return "future"
     }
-
-    // TODAY
     if(cellDate.getTime() === today.getTime()){
-
       if(record && record.entryTime && !record.exitTime){
         return "today-active" // 🔵 animated
       }
-
       if(record){
         return "present"
       }
-
       return "absent"
     }
-
-    // PAST
     if(record){
       return "present"
     }
-
     return "absent"
   }
 
   const renderCalendar = () => {
-
     const daysInMonth = getDaysInMonth(currentDate)
     const firstDay = getFirstDay(currentDate)
     const days:any[] = []
-
     for(let i=0;i<firstDay;i++){
       days.push(<div key={`e${i}`} />)
     }
-
     for(let day=1;day<=daysInMonth;day++){
-
       const status = getStatus(day)
-
       let bg = theme === 'dark' ? 'bg-gray-800' : 'bg-white'
       let text = theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-
       if(status==="present"){
         bg = theme === 'dark' ? 'bg-green-600 text-white' : 'bg-green-500 text-white'
       }
-
       if(status==="today-active"){
         bg = theme === 'dark' ? 'animate-blue-pulse text-blue-400 font-bold' : 'animate-blue-pulse text-blue-700 font-bold'
       }
-
       if(status==="absent"){
         bg = theme === 'dark' ? 'bg-red-600 text-white' : 'bg-red-500 text-white'
       }
-
       if(status==="future"){
         bg = theme === 'dark' ? 'bg-gray-700 text-gray-400' : 'bg-white text-gray-400'
       }
-
       days.push(
         <div
           key={day}
@@ -193,14 +174,10 @@ useEffect(() => {
         </div>
       )
     }
-
     return days
   }
 
-  const monthNames=[
-    "January","February","March","April","May","June",
-    "July","August","September","October","November","December"
-  ]
+  const monthNames=["January","February","March","April","May","June","July","August","September","October","November","December"]
 
   if (loading) {
     return <div className={`p-10 text-center ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Loading...</div>
@@ -221,7 +198,6 @@ useEffect(() => {
             background-color: ${theme === 'dark' ? '#374151' : '#ffffff'};
           }
         }
-
         .animate-blue-pulse {
           animation: pulseBlue 2s ease-in-out infinite;
         }
@@ -229,13 +205,11 @@ useEffect(() => {
 
       <div className={`min-h-screen p-4 ${theme === 'dark' ? 'bg-[#000000]' : 'bg-gray-50'}`}>
         <div className="max-w-4xl mx-auto">
-
           <h1 className={`text-3xl font-bold mb-6 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
             Attendance Calendar
           </h1>
 
           <div className={`p-6 rounded-xl shadow ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
-
             {/* Month Nav */}
             <div className="flex justify-between mb-4">
               <button
@@ -287,10 +261,9 @@ useEffect(() => {
                 Future
               </p>
             </div>
-
           </div>
         </div>
       </div>
     </>
   )
-} 
+}

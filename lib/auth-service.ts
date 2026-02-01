@@ -1,131 +1,66 @@
 import connectDB from "./database";
-
 import { User } from "../models/User";
 
-
 /**
- * Find user by email
+ * Find user by ROOT email (OTP verified user)
  */
 export async function findUserByEmail(email: string) {
   try {
     await connectDB();
     return await User.findOne({ email: email.toLowerCase() });
   } catch (error) {
-    console.error("Error finding user by email:", error);
+    console.error("Error finding user:", error);
     return null;
   }
 }
 
 /**
- * Find user by mobile number
+ * Connect Google to EXISTING user
+ * ❌ DOES NOT CREATE USER
  */
-export async function findUserByMobile(mobile: string) {
+export async function connectGoogleToUser({
+  email,
+  providerId,
+  googleEmail,
+}: {
+  email: string;          // OTP verified email (root)
+  providerId: string;     // Google sub
+  googleEmail: string;    // Google account email
+}) {
   try {
     await connectDB();
-    return await User.findOne({ mobileNumber: mobile });
-  } catch (error) {
-    console.error("Error finding user by mobile:", error);
-    return null;
-  }
-}
 
-/**
- * Find user ONLY by Google auth email
- */
-export async function findUserByGoogleEmail(email: string) {
-  try {
-    await connectDB();
-    return await User.findOne({
-      "authProviders.google.email": email.toLowerCase(),
+    // 🔒 Check: same Google already linked to another user
+    const alreadyLinked = await User.findOne({
+      "authProviders.google.id": providerId,
     });
-  } catch (error) {
-    console.error("Error finding Google user:", error);
-    return null;
-  }
-}
 
-/**
- * Upsert Google OAuth user
- * Saves ONLY:
- * authProviders.google.id
- * authProviders.google.email
- */
-export async function upsertGoogleOAuthUser({
-  email,
-  name,
-  providerId,
-}: {
-  email: string;
-  name?: string;
-  providerId: string;
-}) {
-  try {
-    await connectDB();
-    return await User.findOneAndUpdate(
-      { "authProviders.google.email": email.toLowerCase() },
-      {
-        $set: {
-          email: email.toLowerCase(),
-          "authProviders.google.id": providerId,
-          "authProviders.google.email": email.toLowerCase(),
-        },
-        $setOnInsert: {
-          name: name || email.split('@')[0],
-          role: "user",
-          isActive: true,
-          isEmailVerified: true,
-        },
-      },
-      {
-        upsert: true,
-        new: true,
-      }
-    );
-  } catch (error) {
-    console.error("Error upserting Google OAuth user:", error);
-    throw error;
-  }
-}
+    if (alreadyLinked && alreadyLinked.email !== email.toLowerCase()) {
+      throw new Error("Google account already linked to another user");
+    }
 
-/**
- * Upsert GitHub OAuth user
- * Saves ONLY:
- * authProviders.github.id
- * authProviders.github.email
- */
-export async function upsertGitHubOAuthUser({
-  email,
-  name,
-  providerId,
-}: {
-  email: string;
-  name?: string;
-  providerId: string;
-}) {
-  try {
-    await connectDB();
-    return await User.findOneAndUpdate(
-      { "authProviders.github.email": email.toLowerCase() },
-      {
-        $set: {
-          email: email.toLowerCase(),
-          "authProviders.github.id": providerId,
-          "authProviders.github.email": email.toLowerCase(),
-        },
-        $setOnInsert: {
-          name: name || email.split('@')[0],
-          role: "user",
-          isActive: true,
-          isEmailVerified: true,
-        },
-      },
-      {
-        upsert: true,
-        new: true,
-      }
-    );
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      throw new Error("User does not exist");
+    }
+
+    // 🛡️ Ensure authProviders object
+    if (!user.authProviders) {
+      user.authProviders = {};
+    }
+
+    // 🔗 Attach Google
+    user.authProviders.google = {
+      id: providerId,
+      email: googleEmail.toLowerCase(),
+    };
+
+    await user.save();
+
+    return user;
   } catch (error) {
-    console.error("Error upserting GitHub OAuth user:", error);
+    console.error("Error connecting Google:", error);
     throw error;
   }
 }

@@ -13,19 +13,16 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('light')
+  const [isInitialized, setIsInitialized] = useState(false)
 
   useEffect(() => {
     // Check for saved theme or default to light
     const savedTheme = localStorage.getItem('theme') as Theme
-    if (savedTheme) {
-      setTheme(savedTheme)
-      document.documentElement.setAttribute('data-theme', savedTheme)
-    } else {
-      // Check system preference
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-      setTheme(systemTheme)
-      document.documentElement.setAttribute('data-theme', systemTheme)
-    }
+    const themeToUse = savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    
+    setTheme(themeToUse)
+    document.documentElement.setAttribute('data-theme', themeToUse)
+    setIsInitialized(true)
   }, [])
 
   const toggleTheme = () => {
@@ -37,7 +34,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
+      {isInitialized ? children : null}
     </ThemeContext.Provider>
   )
 }

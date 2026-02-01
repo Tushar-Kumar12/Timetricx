@@ -1,16 +1,9 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { 
-  Profile, 
-  WorkingTime, 
-  GitAndFaceAttendance, 
-  CalenderAteendance,
-  TrackTeam
-} from './components';
+import { Profile, WorkingTime, GitAndFaceAttendance, CalenderAteendance, TrackTeam } from './components';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -18,54 +11,50 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const { theme } = useTheme();
 
-useEffect(() => {
-  const checkAuth = async () => {
-    try {
-      const token = Cookies.get('token');
-      const userCookie = Cookies.get('user');
-
-      // ❌ No token → login
-      if (!token || !userCookie) {
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = Cookies.get('token');
+        const userCookie = Cookies.get('user');
+        if (!token ) {
+          router.push('/landing/auth/login');
+          return;
+        }
+        const userData = JSON.parse(userCookie);
+        const email = userData?.email;
+        console.log(userData);
+        if (!email) {
+          Cookies.remove('token');
+          Cookies.remove('user');
+          router.push('/landing/auth/login');
+          return;
+        }
+        const response = await fetch('/api/check-auth', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`, // optional
+          },
+          body: JSON.stringify({ email }), // 👈 cookies ka user.email
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          Cookies.remove('token');
+          Cookies.remove('user');
+          router.push('/landing/auth/login');
+          return;
+        }
+        setUser(data.data.user);
+        console.log('User data:', data.data.user); // Debug: Check what fields are available
+      } catch (error) {
+        console.error('Auth check error:', error);
         router.push('/landing/auth/login');
-        return;
+      } finally {
+        setLoading(false);
       }
-
-      const userData = JSON.parse(userCookie);
-
-      // 🔥 CALL CHECK-AUTH ROUTE
-      const response = await fetch('/api/auth/check-auth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`, // optional but recommended
-        },
-        body: JSON.stringify({
-          email: userData.email, // 👈 email pass
-        }),
-      });
-
-      const data = await response.json();
-
-      // ❌ Invalid / expired token
-      if (!response.ok || !data.success) {
-        Cookies.remove('token');
-        Cookies.remove('user');
-        router.push('/landing/auth/login');
-        return;
-      }
-
-      // ✅ Auth valid
-      setUser(data.data.user); // backend se fresh user
-    } catch (error) {
-      console.error('Auth check error:', error);
-      router.push('/landing/auth/login');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  checkAuth();
-}, [router]);
+    };
+    checkAuth();
+  }, [router]);
 
   if (loading) {
     return (
@@ -80,14 +69,11 @@ useEffect(() => {
 
   return (
     <div className={`p-6 ${theme === 'dark' ? 'bg-[#000000]' : 'bg-gray-50'} min-h-screen transition-colors`}>
-      {/* Header Section with User Info */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
             <h1 className={`text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Dashboard</h1>
-            <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mt-2`}>
-              Welcome back, {user?.name || 'User'}! Here's what's happening with your team today.
-            </p>
+            <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mt-2`}>Welcome back, {user?.name || 'User'}! Here's what's happening with your team today.</p>
           </div>
           {user && (
             <div className="flex items-center gap-4">
@@ -95,40 +81,34 @@ useEffect(() => {
                 <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Logged in as</p>
                 <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{user.email}</p>
               </div>
-              {user.profilePicture && (
+              {user?.profilePicture ? (
                 <img 
                   src={user.profilePicture} 
                   alt="Profile" 
                   className="w-10 h-10 rounded-full object-cover"
                 />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold">
+                  {user?.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
+                </div>
               )}
             </div>
           )}
         </div>
       </div>
-
-      {/* Main Cards Layout - 1:3 Column Format */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-        {/* Left Column - 2 Cards */}
         <div className="lg:col-span-1 space-y-6">
           <Profile />
           <WorkingTime />
         </div>
-        
-
-        {/* Right Column - 3 Cards */}
         <div className="lg:col-span-3 space-y-6">
-          {/* Revenue Overview Card - Top Full Width */}
           <GitAndFaceAttendance/>
-
-          {/* Bottom Row - 2 Cards Side by Side */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <TrackTeam/>
             <CalenderAteendance />
           </div>
         </div>
       </div>
-
     </div>
   );
 }

@@ -30,19 +30,24 @@ export default function Login() {
     githubId: '',
     shift: 'day'
   });
-
+useEffect(() => {
+  const token = Cookies.get('user');
+  if (token) {
+    router.push('/users');
+  }
+}, []);
 
 // Handle email/password login
 const handleEmailLogin = async () => {
-  const email = (document.querySelector('input[type="email"]') as HTMLInputElement)?.value
-  const password = (document.querySelector('input[type="password"]') as HTMLInputElement)?.value
+  const email = (document.querySelector('input[type="email"]') as HTMLInputElement)?.value;
+  const password = (document.querySelector('input[type="password"]') as HTMLInputElement)?.value;
 
   if (!email || !password) {
-    error('Please fill in all fields')
-    return
+    error('Please fill in all fields');
+    return;
   }
 
-  setIsLoading(true)
+  setIsLoading(true);
 
   try {
     const response = await fetch('/api/auth/signin', {
@@ -50,41 +55,65 @@ const handleEmailLogin = async () => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ identifier: email, password }),
-    })
+      body: JSON.stringify({
+        identifier: email, // ✅ correct payload
+        password,
+      }),
+    });
 
-    const data = await response.json()
+    const data = await response.json();
+    console.log('LOGIN RESPONSE:', data);
 
- 
+    /* ✅ LOGIN SUCCESS */
+    if (response.ok && data.success) {
+      // Save cookies first
+      Cookies.set('user', JSON.stringify(data.data.user), { expires: 365 });
+      Cookies.set('token', data.data.token, { expires: 7 });
+
+      // Check if cookies are saved and show alert
+      const savedUser = Cookies.get('user');
+      const savedToken = Cookies.get('token');
+      
+      if (savedUser && savedToken) {
+        success('Login successful! Cookies saved. Redirecting...');
+        alert('Cookies saved:' + JSON.stringify({ user: savedUser, token: savedToken }));
+        
+        // Redirect after showing alert
+        setTimeout(() => {
+          router.replace('/users');
+        }, 1500); // Wait 1.5 seconds to show the success message
+      } else {
+        error('Failed to save cookies. Please try again.');
+        console.error('Cookies not saved:', { savedUser, savedToken });
+      }
+      return;
+    }
+
+
 
     /* 🔥 GITHUB CONNECT REQUIRED */
     if (data.action === 'github') {
-      setShowProfileModal(true) // 👈 GitHub modal
-      return
+      setShowProfileModal(true);
+      return;
     }
 
     /* 🔥 GOOGLE CONNECT REQUIRED */
     if (data.action === 'google') {
-      setShowGoogleModal(true) // 👈 Google modal
-      return
+      setShowGoogleModal(true);
+      return;
     }
-   /* ✅ LOGIN SUCCESS */
-    if (response.ok && data.success) {
-      Cookies.set('user', JSON.stringify(data.data.user), { expires: 365 })
-      Cookies.set('token', data.data.token, { expires: 7 })
 
-      window.location.href = '/users'
-      return
-    }
-    /* ❌ NORMAL ERROR (invalid credentials ) */
-    error(data.message || 'Login failed')
+    /* ❌ NORMAL ERROR */
+    error(data.message || 'Invalid email or password');
 
   } catch (err) {
-    error('Login failed. Please try again.')
+    console.error('Login error:', err);
+    error('Login failed. Please try again.');
   } finally {
-    setIsLoading(false)
+    setIsLoading(false);
   }
-}
+};
+
 const handleGoogleConnect = () => {
   const userCookie = Cookies.get('user')
 

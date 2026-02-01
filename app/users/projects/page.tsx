@@ -1,67 +1,67 @@
 'use client'
-
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Cookies from 'js-cookie'
 import OverallDetails from './components/overalldetails'
 import ProjectsComponent from './components/projects'
 import Loading from '../../../components/ui/Loading'
-
 export default function ProjectsPage() {
   const router = useRouter()
   const [allowed, setAllowed] = useState<null | boolean>(null)
   const [user, setUser] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = Cookies.get('token');
+        const userCookie = Cookies.get('user');
 
-  // Check token validation
-useEffect(() => {
-  const checkAuth = async () => {
-    try {
-      const token = Cookies.get('token');
-      const userCookie = Cookies.get('user');
+        // ❌ Token ya user cookie missing → login
+        if (!token || !userCookie) {
+          router.push('/landing/auth/login');
+          return;
+        }
 
-      // ❌ No token → login
-      if (!token || !userCookie) {
+        // ✅ Cookie se email nikaalo
+        const userData = JSON.parse(userCookie);
+        const email = userData?.email;
+
+        if (!email) {
+          router.push('/landing/auth/login');
+          return;
+        }
+
+        // 🔥 CALL CHECK-AUTH ROUTE
+        const response = await fetch('/api/auth/check-auth', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`, // optional
+          },
+          body: JSON.stringify({ email }), // 👈 cookies ka user.email
+        });
+
+        const data = await response.json();
+
+        // ❌ Auth invalid (providers missing / user not found)
+        if (!response.ok || !data.success) {
+          router.push('/landing/auth/login');
+          return;
+        }
+
+        // ✅ Auth valid → fresh user set
+        setUser(data.data.user);
+
+      } catch (error) {
+        console.error('Auth check error:', error);
         router.push('/landing/auth/login');
-        return;
+      } finally {
+        setLoading(false);
       }
+    };
 
-      const userData = JSON.parse(userCookie);
-
-      // 🔥 CALL CHECK-AUTH ROUTE
-      const response = await fetch('/api/auth/check-auth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`, // optional but recommended
-        },
-        body: JSON.stringify({
-          email: userData.email, // 👈 email pass
-        }),
-      });
-
-      const data = await response.json();
-
-      // ❌ Invalid / expired token
-      if (!response.ok || !data.success) {
-        Cookies.remove('token');
-        Cookies.remove('user');
-        router.push('/landing/auth/login');
-        return;
-      }
-
-      // ✅ Auth valid
-      setUser(data.data.user); // backend se fresh user
-    } catch (error) {
-      console.error('Auth check error:', error);
-      router.push('/landing/auth/login');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  checkAuth();
-}, [router]);
+    checkAuth();
+  }, [router]);
 
   useEffect(() => {
     const checkProfile = async () => {
@@ -113,3 +113,4 @@ useEffect(() => {
     </div>
   )
 }
+

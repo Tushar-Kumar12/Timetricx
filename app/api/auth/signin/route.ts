@@ -50,7 +50,33 @@ export async function POST(request: NextRequest) {
     const hasGithub = !!user.authProviders?.github?.id
     const hasGoogle = !!user.authProviders?.google?.id
 
-    // 🔥 GitHub missing
+    // ✅ Allow login if user has at least one provider OR no providers (email-only account)
+    if (hasGithub || hasGoogle || (!hasGithub && !hasGoogle)) {
+      /* ---------- Generate token ---------- */
+
+      const token = generateToken({
+        userId: user._id,
+        email: user.email,
+        role: user.role
+      })
+
+      const userResponse = await User.findOne({email: identifier.toLowerCase()}).select('+email +mobileNumber +designation +skills +profilePicture')
+      delete userResponse.password
+      console.log('User response:', userResponse)
+
+      return NextResponse.json(
+        createSuccessResponse(
+          {
+            user: userResponse,
+            token
+          },
+          'Login successful'
+        ),
+        { status: 200 }
+      )
+    }
+
+    // 🔥 If user has some providers but missing others, show which one to connect
     if (!hasGithub) {
       return NextResponse.json(
         {
@@ -73,28 +99,6 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       )
     }
-
-    /* ---------- Generate token ---------- */
-
-    const token = generateToken({
-      userId: user._id,
-      email: user.email,
-      role: user.role
-    })
-
-    const userResponse = user.toObject()
-    delete userResponse.password
-
-    return NextResponse.json(
-      createSuccessResponse(
-        {
-          user: userResponse,
-          token
-        },
-        'Login successful'
-      ),
-      { status: 200 }
-    )
   } catch (error) {
     console.error('Signin error:', error)
 

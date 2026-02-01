@@ -1,234 +1,134 @@
 import { NextRequest, NextResponse } from "next/server";
-
 import { getAppBaseUrl, getGoogleOAuthClient } from "../../../../../lib/google-oauth";
+import connectDB from "../../../../../lib/database";
+import { User } from "../../../../../models/User";
 
-import {
-
-  upsertGoogleOAuthUser,
-
-  findUserByGoogleEmail,
-
-} from "../../../../../lib/auth-service";
-
-
+/* ---------------- REDIRECT HELPERS ---------------- */
 
 const successRedirect = ({
-
   redirectPath,
-
-  needsMobile,
-
   request,
-
 }: {
-
   redirectPath?: string;
-
-  needsMobile: boolean;
-
   request: NextRequest;
-
 }) => {
-
   const base = getAppBaseUrl(request);
-
-  const path = redirectPath || "/signup";
-
-  const url = new URL(`${base}${path}`);
-
-  url.searchParams.set("auth", "google_success");
-
-  url.searchParams.set("needs_mobile", needsMobile ? "1" : "0");
-
-  return url.toString();
-
+  const path = redirectPath || "/users"; // 🔥 DEFAULT /users
+  return new URL(`${base}${path}`).toString();
 };
-
-
 
 const errorRedirect = (
-
-  redirectPath: string | undefined,
-
   message: string,
-
-  request: NextRequest
-
+  request: NextRequest,
+  redirectPath = "/landing/auth/login"
 ) => {
-
   const base = getAppBaseUrl(request);
-
-  const path = redirectPath || "/landing/auth/login";
-
-  const url = new URL(`${base}${path}`);
-
+  const url = new URL(`${base}${redirectPath}`);
   url.searchParams.set("auth_error", message);
-
   return url.toString();
-
 };
 
-
+/* ---------------- MAIN HANDLER ---------------- */
 
 export async function GET(request: NextRequest) {
-
   const search = request.nextUrl.searchParams;
-
   const code = search.get("code");
-
   const stateParam = search.get("state");
 
-
-
   if (!code) {
-
     return NextResponse.redirect(
-
-      errorRedirect("/landing/auth/login", "missing_code", request)
-
+      errorRedirect("missing_code", request)
     );
-
   }
 
-
+  /* ---------- STATE PARSE ---------- */
 
   let redirectPath: string | undefined;
-
-  let mode: "signin" | "signup" = "signup";
-
-
+  let connectEmail: string | null = null;
 
   try {
-
     if (stateParam) {
-
       const state = JSON.parse(stateParam);
 
-      if (state?.mode === "signin") mode = "signin";
+      if (typeof state.redirect === "string") {
+        redirectPath = state.redirect;
+      }
 
-      if (typeof state.redirect === "string") redirectPath = state.redirect;
-
+      if (state.mode === "connect" && typeof state.email === "string") {
+        connectEmail = state.email.toLowerCase();
+      }
     }
-
   } catch {
-
-    // ignore malformed state
-
+    return NextResponse.redirect(
+      errorRedirect("invalid_state", request)
+    );
   }
 
-
-
-  const resolveRedirectPath = ({ existedBefore }: { existedBefore: boolean }) => {
-
-    if (mode !== "signin") return redirectPath;
-
-    if (existedBefore) return redirectPath;
-
-    return "/landing/auth/login";
-
-  };
-
-
+  // 🔒 Only CONNECT flow allowed
+  if (!connectEmail) {
+    return NextResponse.redirect(
+      errorRedirect("connect_only", request)
+    );
+  }
 
   try {
+    /* ---------- GOOGLE TOKEN ---------- */
 
     const client = getGoogleOAuthClient(request);
-
     const { tokens } = await client.getToken(code);
 
-
-
     if (!tokens.id_token) {
-
       return NextResponse.redirect(
-
-        errorRedirect(redirectPath, "missing_id_token", request)
-
+        errorRedirect("missing_id_token", request, redirectPath)
       );
-
     }
 
-
-
     const ticket = await client.verifyIdToken({
-
       idToken: tokens.id_token,
-
       audience: process.env.GOOGLE_CLIENT_ID,
-
     });
-
-
 
     const payload = ticket.getPayload();
 
     if (!payload?.email || !payload.sub) {
-
       return NextResponse.redirect(
-
-        errorRedirect(redirectPath, "missing_email", request)
-
+        errorRedirect("invalid_google_payload", request, redirectPath)
       );
-
     }
 
+    /* ---------- DB ---------- */
 
+    await connectDB();
 
-    // 🔥 CHECK USER BY GOOGLE EMAIL
+    // 🔥 EXISTING USER (OTP EMAIL)
+    const user = await User.findOne({ email: connectEmail });
 
-    const existedBefore = !!(await findUserByGoogleEmail(payload.email));
+    if (!user) {
+      return NextResponse.redirect(
+        errorRedirect("user_not_found", request, redirectPath)
+      );
+    }
 
+    // 🔗 CONNECT GOOGLE
+    user.authProviders.google = {
+      id: payload.sub,
+      email: payload.email.toLowerCase(),
+    };
 
+    await user.save();
 
-    // 🔥 UPSERT ONLY GOOGLE AUTH DATA
-
-    await upsertGoogleOAuthUser({
-
-      email: payload.email,
-
-      name: payload.name,
-
-      providerId: payload.sub,
-
-    });
-
-
-
-    const user = await findUserByGoogleEmail(payload.email);
-
-    const needsMobile = !user?.mobileNumber;
-
-
-
-    const finalRedirectPath = resolveRedirectPath({ existedBefore });
-
-
+    /* ---------- SUCCESS ---------- */
 
     return NextResponse.redirect(
-
       successRedirect({
-
-        redirectPath: finalRedirectPath,
-
-        needsMobile,
-
+        redirectPath,
         request,
-
       })
-
     );
-
   } catch (error) {
-
-    console.error("Google OAuth callback failed:", error);
-
+    console.error("Google CONNECT failed:", error);
     return NextResponse.redirect(
-
-      errorRedirect(redirectPath, "oauth_failed", request)
-
+      errorRedirect("oauth_failed", request, redirectPath)
     );
-
   }
-
 }
-

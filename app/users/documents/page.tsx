@@ -1,5 +1,4 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import Cookies from 'js-cookie';
@@ -12,65 +11,16 @@ import {
   Eye,
 } from 'lucide-react';
 
+
+
 const DOCS = [
   { label: 'Aadhar Card', key: 'aadhar' },
   { label: 'College ID', key: 'collegeId' },
   { label: 'NOC', key: 'noc' },
 ];
-const router = useRouter();
-const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-useEffect(() => {
-  const checkAuth = async () => {
-    try {
-      const token = Cookies.get('token');
-      const userCookie = Cookies.get('user');
 
-      // ❌ No token → login
-      if (!token || !userCookie) {
-        router.push('/landing/auth/login');
-        return;
-      }
-
-      const userData = JSON.parse(userCookie);
-
-      // 🔥 CALL CHECK-AUTH ROUTE
-      const response = await fetch('/api/auth/check-auth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`, // optional but recommended
-        },
-        body: JSON.stringify({
-          email: userData.email, // 👈 email pass
-        }),
-      });
-
-      const data = await response.json();
-
-      // ❌ Invalid / expired token
-      if (!response.ok || !data.success) {
-        Cookies.remove('token');
-        Cookies.remove('user');
-        router.push('/landing/auth/login');
-        return;
-      }
-
-      // ✅ Auth valid
-      setUser(data.data.user); // backend se fresh user
-    } catch (error) {
-      console.error('Auth check error:', error);
-      router.push('/landing/auth/login');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  checkAuth();
-}, [router]);
 const getUserFromCookies = () => {
   if (typeof document === 'undefined') return null;
-  
   const cookie = document.cookie
     .split('; ')
     .find(row => row.startsWith('user='));
@@ -87,13 +37,65 @@ const getViewableUrl = (url: string) => {
   return url;
 };
 
+
+
 export default function InternDocuments() {
   const { theme } = useTheme();
-  const user = getUserFromCookies();
-  const email = user?.email;
-
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const userFromCookies = getUserFromCookies();
+  const email = userFromCookies?.email;
   const [loading, setLoading] = useState<string | null>(null);
   const [docsData, setDocsData] = useState<Record<string, string | null>>({});
+
+  // Authentication check
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = Cookies.get('token');
+        const userCookie = Cookies.get('user');
+
+        // ❌ No token → login
+        if (!token || !userCookie) {
+          router.push('/landing/auth/login');
+          return;
+        }
+
+        const userData = JSON.parse(userCookie);
+
+        // 🔥 CALL CHECK-AUTH ROUTE
+        const response = await fetch('/api/auth/check-auth', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`, // optional but recommended
+          },
+          body: JSON.stringify({
+            email: userData.email, // 👈 email pass
+          }),
+        });
+
+        const data = await response.json();
+
+        // ❌ Invalid / expired token
+        if (!response.ok || !data.success) {
+          router.push('/landing/auth/login');
+          return;
+        }
+
+        // ✅ Auth valid
+        setUser(data.data.user); // backend se fresh user
+      } catch (error) {
+        console.error('Auth check error:', error);
+        router.push('/landing/auth/login');
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, [router]);
 
   // Check token validation
   useEffect(() => {
@@ -104,19 +106,22 @@ export default function InternDocuments() {
     }
   }, []);
 
+  // Show loading while authenticating
+  if (authLoading) {
+    return <div className={`p-10 text-center ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Loading...</div>;
+  }
+
   /* =========================
      FETCH UPLOADED DOCS
   ========================= */
   useEffect(() => {
     if (!email) return;
-
     const fetchDocs = async () => {
       try {
         const res = await fetch(
           `/api/users/documents/get-intern-documents?email=${email}`
         );
         const data = await res.json();
-
         if (data.success) {
           setDocsData(data.documents || {});
         }
@@ -124,31 +129,27 @@ export default function InternDocuments() {
         console.error('Failed to load documents', err);
       }
     };
-
     fetchDocs();
   }, [email]);
+
+
 
   /* =========================
      UPLOAD HANDLER
   ========================= */
   const uploadFile = async (file: File, docType: string) => {
     if (!email) return;
-
     setLoading(docType);
-
     const formData = new FormData();
     formData.append('file', file);
     formData.append('docType', docType);
     formData.append('email', email);
-
     try {
       const res = await fetch('/api/users/documents/intern-documents', {
         method: 'POST',
         body: formData,
       });
-
       const data = await res.json();
-
       if (data.success) {
         setDocsData(prev => ({
           ...prev,
@@ -161,6 +162,8 @@ export default function InternDocuments() {
       setLoading(null);
     }
   };
+
+
 
   return (
     <div
@@ -187,11 +190,12 @@ export default function InternDocuments() {
           </p>
         </div>
 
+
+
         {/* Documents Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {DOCS.map(doc => {
             const uploadedUrl = docsData[doc.key];
-
             return (
               <div
                 key={doc.key}
@@ -221,6 +225,8 @@ export default function InternDocuments() {
                     </p>
                   </div>
                 </div>
+
+
 
                 {/* Upload Input */}
                 <input
@@ -279,6 +285,8 @@ export default function InternDocuments() {
                   )}
                 </label>
 
+
+
                 {/* View Section */}
                 <div className="mt-4">
                   {uploadedUrl ? (
@@ -305,6 +313,8 @@ export default function InternDocuments() {
           })}
         </div>
 
+
+
         {/* Info Box */}
         <div
           className={`mt-8 p-4 rounded-lg ${
@@ -325,3 +335,4 @@ export default function InternDocuments() {
     </div>
   );
 }
+

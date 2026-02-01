@@ -1,26 +1,70 @@
 import { NextResponse } from "next/server";
-import { findUserByEmail, findUserByMobile } from "@/lib/auth-service";
+import connectDB from "@/lib/database";
+import { User } from "@/models/User";
 
 export async function POST(request: Request) {
   try {
-    const { identifier } = await request.json(); // identifier can be email or mobile
+    const { identifier } = await request.json();
+
     if (!identifier) {
-      return NextResponse.json({ error: "Email or mobile number is required" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: "Email or mobile number is required" },
+        { status: 400 }
+      );
     }
 
-    // Check if identifier is an email or mobile number
+    await connectDB();
+
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
+
     let user = null;
 
+    /* ---------------- EMAIL FLOW ---------------- */
     if (isEmail) {
-      user = await findUserByEmail(identifier);
-    } else {
-      user = await findUserByMobile(identifier);
+      user = await User.findOne({
+        email: identifier.toLowerCase(),
+      });
+
+      // ❌ user hi nahi mila
+      if (!user) {
+        return NextResponse.json({
+          success: true,
+          exists: false,
+        });
+      }
+
+      // ❌ mobile number missing → invalid profile
+      if (!user.mobileNumber) {
+        return NextResponse.json({
+          success: true,
+          exists: true,
+          mobileMissing: true, // 🔥 frontend use karega
+        });
+      }
+
+      // ✅ valid user
+      return NextResponse.json({
+        success: true,
+        exists: true,
+        mobileMissing: false,
+      });
     }
 
-    return NextResponse.json({ exists: !!user });
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : "Failed to check user";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    /* ---------------- MOBILE FLOW ---------------- */
+    user = await User.findOne({
+      mobileNumber: identifier,
+    });
+
+    return NextResponse.json({
+      success: true,
+      exists: !!user,
+    });
+
+  } catch (error) {
+    console.error("CHECK USER ERROR:", error);
+    return NextResponse.json(
+      { success: false, message: "Failed to check user" },
+      { status: 500 }
+    );
   }
 }
