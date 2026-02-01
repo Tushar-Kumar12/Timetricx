@@ -1,0 +1,116 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
+import { useTheme } from '../../../contexts/ThemeContext';
+import { 
+  Profile, 
+  WorkingTime, 
+  GitAndFaceAttendance, 
+  CalenderAteendance,
+  TrackTeam
+} from './components';
+
+export default function Dashboard() {
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const { theme } = useTheme();
+
+  useEffect(() => {
+    const checkAuth = () => {
+      try {
+        // Check if token exists in cookies
+        const token = Cookies.get('token');
+        const userCookie = Cookies.get('user');
+
+        if (!token) {
+          // Redirect to login if no token
+          router.push('/landing/auth/login');
+          return;
+        }
+
+        // If user data exists in cookies, use it
+        if (userCookie) {
+          const userData = JSON.parse(userCookie);
+          
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+        // Redirect to login on error
+        router.push('/landing/auth/login');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center ${theme === 'dark' ? 'bg-[#000000]' : 'bg-white'} transition-colors`}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className={`mt-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`p-6 ${theme === 'dark' ? 'bg-[#000000]' : 'bg-gray-50'} min-h-screen transition-colors`}>
+      {/* Header Section with User Info */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className={`text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Dashboard</h1>
+            <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mt-2`}>
+              Welcome back, {user?.name || 'User'}! Here's what's happening with your team today.
+            </p>
+          </div>
+          {user && (
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Logged in as</p>
+                <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{user.email}</p>
+              </div>
+              {user.profilePicture && (
+                <img 
+                  src={user.profilePicture} 
+                  alt="Profile" 
+                  className="w-10 h-10 rounded-full object-cover"
+                />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Main Cards Layout - 1:3 Column Format */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+        {/* Left Column - 2 Cards */}
+        <div className="lg:col-span-1 space-y-6">
+          <Profile />
+          <WorkingTime />
+        </div>
+        
+
+        {/* Right Column - 3 Cards */}
+        <div className="lg:col-span-3 space-y-6">
+          {/* Revenue Overview Card - Top Full Width */}
+          <GitAndFaceAttendance/>
+
+          {/* Bottom Row - 2 Cards Side by Side */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <TrackTeam/>
+            <CalenderAteendance />
+          </div>
+        </div>
+      </div>
+
+    </div>
+  );
+}
