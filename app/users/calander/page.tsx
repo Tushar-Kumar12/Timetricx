@@ -16,70 +16,18 @@ export default function CalendarPage() {
   const [records, setRecords] = useState<AttendanceRecord[]>([])
   const [currentDate, setCurrentDate] = useState(new Date())
   const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<any>(null);
-
-  // Authentication check
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const token = Cookies.get('token');
-        const userCookie = Cookies.get('user');
-
-        // ❌ Token ya user cookie missing → login
-        if (!token || !userCookie) {
-          router.push('/landing/auth/login');
-          return;
-        }
-
-        // ✅ Cookie se email nikaalo
-        const userData = JSON.parse(userCookie);
-        const email = userData?.email;
-
-        if (!email) {
-          
-          router.push('/landing/auth/login');
-          return;
-        }
-
-        // 🔥 CALL CHECK-AUTH ROUTE
-        const response = await fetch('/api/auth/check-auth', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`, // optional
-          },
-          body: JSON.stringify({ email }), // 👈 cookies ka user.email
-        });
-
-        const data = await response.json();
-
-        // ❌ Auth invalid (providers missing / user not found)
-        if (!response.ok || !data.success) {
-          router.push('/landing/auth/login');
-          return;
-        }
-
-        // ✅ Auth valid → fresh user set
-        setUser(data.data.user);
-
-      } catch (error) {
-        console.error('Auth check error:', error);
-        router.push('/landing/auth/login');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAuth();
-  }, [router]);
-
-
 
   useEffect(() => {
     fetchAttendance()
   }, [currentDate])
 
-
+useEffect(() => {
+  const token = Cookies.get('token')
+  if (!token) {
+    window.location.href = '/landing/auth/login'
+    return
+  }
+}, [])
 
   const fetchAttendance = async () => {
     try {
