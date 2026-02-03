@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     const safeFaceImage = normalizeBase64Image(faceImage);
 
     // 🔥 CALL JS FACE API SERVER
-    const faceRes = await fetch("http://localhost:5000/verify-face", {
+    const faceRes = await fetch("https://face-api-js-rho.vercel.app/verify-face", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

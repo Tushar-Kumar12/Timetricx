@@ -33,7 +33,7 @@ export async function POST(req: Request) {
 
     // 🔥 FACE API SERVER CALL (JS / PYTHON – doesn’t matter)
     const faceRes = await fetch(
-      "http://192.168.0.120:5000/verify-face",
+      "https://face-api-js-rho.vercel.app/verify-face",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
