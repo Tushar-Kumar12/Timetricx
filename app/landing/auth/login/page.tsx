@@ -31,11 +31,52 @@ export default function Login() {
     shift: 'day'
   });
 useEffect(() => {
-  const token = Cookies.get('user');
-  if (token) {
-    router.push('/users');
-  }
-}, []);
+    // 1️⃣ token check
+    const token = Cookies.get('token')
+    if (!token) return // ❌ stop here
+
+    // 2️⃣ user cookie
+    const userCookie = Cookies.get('user')
+    if (!userCookie) return
+
+    let user
+    try {
+      user = JSON.parse(userCookie)
+    } catch {
+      return
+    }
+
+    if (!user?.email) return
+
+    // 3️⃣ call backend route
+    const checkProviders = async () => {
+      try {
+        const res = await fetch(
+          '/api/auth/check-login-validation',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ email: user.email }),
+          }
+        )
+
+        const data = await res.json()
+
+        // 4️⃣ decision
+        if (res.ok && data.success && data.hasAuthProvider) {
+          router.replace('/users')
+        }
+        // ❌ else: kuch nahi karo (useEffect yahin end)
+      } catch {
+        // silently fail
+      }
+    }
+
+    checkProviders()
+  }, [router])
 
 // Handle email/password login
 const handleEmailLogin = async () => {
@@ -75,15 +116,14 @@ const handleEmailLogin = async () => {
       const savedToken = Cookies.get('token');
       
       if (savedUser && savedToken) {
-        success('Login successful! Cookies saved. Redirecting...');
+        success('Login successful! Redirecting...');
         
         // Redirect after showing alert
         setTimeout(() => {
           router.replace('/users');
         }, 1500); // Wait 1.5 seconds to show the success message
       } else {
-        error('Failed to save cookies. Please try again.');
-        console.error('Cookies not saved:', { savedUser, savedToken });
+        error('Failed to login. Please try again.');
       }
       return;
     }
@@ -103,10 +143,9 @@ const handleEmailLogin = async () => {
     }
 
     /* ❌ NORMAL ERROR */
-    error(data.message || 'Invalid email or password');
+    error('Invalid email or password');
 
   } catch (err) {
-    console.error('Login error:', err);
     error('Login failed. Please try again.');
   } finally {
     setIsLoading(false);
@@ -125,7 +164,7 @@ const handleGoogleConnect = () => {
   try {
     user = JSON.parse(userCookie)
   } catch (err) {
-    error('Invalid user session')
+    error('Invalid user session login again')
     return
   }
 
@@ -177,7 +216,7 @@ const handleModalSubmit = async () => {
       setShowGoogleModal(true)
       success('Profile updated successfully!')
     } else {
-      error(result.message || 'Profile update failed')
+      error('Profile update failed')
     }
 
   } catch (error) {
@@ -224,7 +263,7 @@ const handleProfilePictureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         setResetToken(data.data.token);
         success('OTP sent to your email successfully!');
       } else {
-        error(data.message || 'Failed to send OTP');
+        error('Failed to send OTP');
       }
     } catch (error) {
       error('Failed to send OTP. Please try again.');
@@ -270,7 +309,7 @@ const handleProfilePictureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         setShowResetPasswordModal(true);
         success('OTP verified successfully!');
       } else {
-        error(result.message || 'OTP verification failed');
+        error('OTP verification failed');
       }
     } catch (error) {
       error('OTP verification failed. Please try again.');
@@ -301,7 +340,7 @@ const handleProfilePictureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         setResetToken(result.data.token);
         success('OTP has been resent to your email');
       } else {
-        error(result.message || 'Failed to resend OTP');
+        error('Failed to resend OTP');
       }
     } catch (error) {
       error('Failed to resend OTP. Please try again.');
@@ -342,7 +381,7 @@ const handleProfilePictureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         setShowResetPasswordModal(false);
         window.location.href = '/landing/auth/login';
       } else {
-        error(data.message || 'Failed to reset password');
+        error('Failed to reset password');
       }
     } catch (error) {
       error('Failed to reset password. Please try again.');

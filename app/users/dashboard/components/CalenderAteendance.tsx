@@ -69,7 +69,7 @@ export default function TeamProjectCarousel() {
 
     const interval = setInterval(() => {
       const el = carouselRef.current!
-      el.scrollBy({ left: 370, behavior: 'smooth' })
+      el.scrollBy({ left: 380, behavior: 'smooth' })
 
       if (
         el.scrollLeft + el.clientWidth >=
@@ -84,8 +84,21 @@ export default function TeamProjectCarousel() {
 
   if (loading) {
     return (
-      <div className="p-6 rounded-xl text-sm text-gray-400">
-        Loading team analytics…
+      <div className={`rounded-4xl border p-5 ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+        <div className="animate-pulse">
+          <div className={`h-5 bg-gray-300 rounded w-1/3 mb-4`}></div>
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
+                <div className="flex-1">
+                  <div className="h-4 bg-gray-300 rounded w-1/2 mb-2"></div>
+                  <div className="h-3 bg-gray-300 rounded w-3/4"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     )
   }

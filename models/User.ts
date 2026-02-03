@@ -7,6 +7,8 @@ export interface IUser extends Document {
   mobileNumber?: string;
   profilePicture?: string;
   designation?: string; // 👈 added
+  shift?: string; // 👈 added
+  workingType?: string; // 👈 added
   role: 'user' | 'admin' | 'moderator';
   isActive: boolean;
   isEmailVerified: boolean;
@@ -74,6 +76,16 @@ const UserSchema: Schema = new Schema(
       type: String,
       sparse: true
     },
+    shift: {
+      type: String,
+      enum: ['day', 'night'],
+      default: 'day'
+    },
+    workingType: {
+      type: String,
+      enum: ['intern', 'employee', 'freelancer'],
+      default: ''
+    },
     profilePicture: {
       type: String,
       default: ''
@@ -89,7 +101,7 @@ const UserSchema: Schema = new Schema(
     },
     role: {
       type: String,
-      enum: ['user', 'admin', 'moderator'],
+      enum: ['user', 'admin',],
       default: 'user'
     },
     isActive: {

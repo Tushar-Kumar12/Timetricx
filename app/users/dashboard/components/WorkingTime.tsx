@@ -8,86 +8,87 @@ export default function WorkingTimeCircle() {
   const { theme } = useTheme()
   const [avgTime,setAvgTime] = useState(0)
   const [chart,setChart] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(()=>{
     loadData()
   },[])
 
   const loadData = async()=>{
+    setLoading(true)
+    try {
+      const userCookie = Cookies.get("user")
+      if(!userCookie) return
+      const user = JSON.parse(userCookie)
 
-    const userCookie = Cookies.get("user")
-    if(!userCookie) return
-    const user = JSON.parse(userCookie)
+      const res = await fetch(
+        `/api/attendance/get-attendance?email=${user.email}`
+      )
+      const result = await res.json()
+      if(!result.success) return
 
-    const res = await fetch(
-      `/api/attendance/get-attendance?email=${user.email}`
-    )
-    const result = await res.json()
-    if(!result.success) return
+      console.log("WORKING TIME DEBUG - API Response:", result);
+      console.log("WORKING TIME DEBUG - Records:", result.data.records);
 
-    console.log("WORKING TIME DEBUG - API Response:", result);
-    console.log("WORKING TIME DEBUG - Records:", result.data.records);
+      const records = result.data.records
 
-    const records = result.data.records
+      if(!records || records.length === 0){
+        // 🔴 NO WORK DAYS
+        setAvgTime(0)
+        setChart([
+          {name:"No Work",value:0},
+        ])
+        return
+      }
 
-    if(!records || records.length === 0){
-      // 🔴 NO WORK DAYS
-      setAvgTime(0)
+      // 🔥 Calculate days worked and total days in month (excluding weekends)
+      const now = new Date()
+      const totalDaysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+      
+      // 🔥 Count only weekdays (Monday-Friday)
+      let weekdaysCount = 0
+      for(let day = 1; day <= totalDaysInMonth; day++) {
+        const date = new Date(now.getFullYear(), now.getMonth(), day)
+        const dayOfWeek = date.getDay() // 0 = Sunday, 6 = Saturday
+        if(dayOfWeek !== 0 && dayOfWeek !== 6) { // Exclude Sunday and Saturday
+          weekdaysCount++
+        }
+      }
+
+      // 🔥 Count days worked
+      let daysWorked = 0
+      let total = 0
+      let count = 0
+
+      records.forEach((r:any)=>{
+        if(r.entryTime && r.exitTime){
+          daysWorked++
+          const start = new Date(`${r.date} ${r.entryTime}`)
+          const end = new Date(`${r.date} ${r.exitTime}`)
+          const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+          total += hours
+          count++
+        }
+      })
+
+      if(count===0){
+        // 🔴 ZERO HOURS (but days worked)
+        setAvgTime(0)
+      } else {
+        const avg=total/count
+        setAvgTime(avg)
+      }
+
+      // 🟢🔴 GREEN FOR WORKED, RED FOR NOT WORKED
       setChart([
-        {name:"No Work",value:100},
+        {name:"Worked Days",value:daysWorked},
+        {name:"Not Worked",value:weekdaysCount - daysWorked}
       ])
-      return
+    } catch (error) {
+      console.error('Error loading working time data:', error);
+    } finally {
+      setLoading(false);
     }
-
-    // 🔥 Calculate days worked and total days in month (excluding weekends)
-    const now = new Date()
-    const totalDaysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
-    
-    // 🔥 Count only weekdays (Monday-Friday)
-    let weekdaysCount = 0
-    for(let day = 1; day <= totalDaysInMonth; day++) {
-      const date = new Date(now.getFullYear(), now.getMonth(), day)
-      const dayOfWeek = date.getDay() // 0 = Sunday, 6 = Saturday
-      if(dayOfWeek !== 0 && dayOfWeek !== 6) { // Exclude Sunday (0) and Saturday (6)
-        weekdaysCount++
-      }
-    }
-    
-    const daysWorked = records.filter(r => r.entryTime).length
-    const daysNotWorked = weekdaysCount - daysWorked
-
-    console.log("WORKING TIME DEBUG - Total days in month:", totalDaysInMonth);
-    console.log("WORKING TIME DEBUG - Weekdays count:", weekdaysCount);
-    console.log("WORKING TIME DEBUG - Days worked:", daysWorked);
-    console.log("WORKING TIME DEBUG - Days not worked:", daysNotWorked);
-
-    // 🔥 Calculate average hours
-    let total=0
-    let count=0
-
-    records.forEach((r:any)=>{
-      if(r.entryTime && r.exitTime){
-        const start = new Date(`${r.date} ${r.entryTime}`)
-        const end = new Date(`${r.date} ${r.exitTime}`)
-        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
-        total += hours
-        count++
-      }
-    })
-
-    if(count===0){
-      // 🔴 ZERO HOURS (but days worked)
-      setAvgTime(0)
-    } else {
-      const avg=total/count
-      setAvgTime(avg)
-    }
-
-    // 🟢🔴 GREEN FOR WORKED, RED FOR NOT WORKED
-    setChart([
-      {name:"Worked Days",value:daysWorked},
-      {name:"Not Worked",value:daysNotWorked}
-    ])
   }
 
   // COLOR LOGIC
@@ -118,6 +119,20 @@ export default function WorkingTimeCircle() {
   const COLORS=getColors()
 
   const totalDays = getTotalWeekdaysInMonth()
+
+  if (loading) {
+    return (
+      <div className={`rounded-4xl p-6 shadow h-80 flex flex-col items-center justify-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+        <div className="animate-pulse w-full">
+          <div className={`h-6 bg-gray-300 rounded w-1/3 mx-auto mb-4`}></div>
+          <div className={`h-8 bg-gray-300 rounded w-1/4 mx-auto mb-2`}></div>
+          <div className={`h-4 bg-gray-300 rounded w-1/2 mx-auto mb-6`}></div>
+          <div className="w-40 h-40 bg-gray-300 rounded-full mx-auto mb-4"></div>
+          <div className={`h-4 bg-gray-300 rounded w-1/3 mx-auto`}></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`rounded-4xl p-6 shadow h-80 flex flex-col items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>

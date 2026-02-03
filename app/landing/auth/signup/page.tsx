@@ -41,7 +41,7 @@ function SignupContent() {
         // Redirect to users dashboard after OAuth success
         window.location.href = '/users';
       } catch (error) {
-        console.error('Error storing OAuth data:', error);
+        console.error('Error storing data');
       }
     }
   }, [searchParams]);
@@ -181,7 +181,7 @@ console.log("FILE SENT:", userData.profilePicture)
       setShowGoogleModal(true)
       success('Profile updated successfully!')
     } else {
-      error(result.message || 'Profile update failed')
+      error('Profile update failed')
     }
 
   } catch (error) {
@@ -220,7 +220,7 @@ const handleOtpVerification = async () => {
       setShowOtpModal(false);
       setShowProfileModal(true);
     } else {
-      error(result.message || 'OTP verification failed');
+      error('OTP verification failed');
     }
 
   } catch (error) {
@@ -601,7 +601,7 @@ const handleOtpChange = (index: number, value: string) => {
 
           <div>
             <label className="block text-sm text-white/80 mb-2">
-              GitHub ID
+              GitHub User Name
             </label>
             <input
               type="text"
@@ -631,7 +631,7 @@ const handleOtpChange = (index: number, value: string) => {
                     : 'bg-black/30 border-white/20 text-white/60 hover:border-white/40'
                 }`}
               >
-                🌞 Day Shift
+                🌞 Day Shift 
               </button>
               <button
                 type="button"

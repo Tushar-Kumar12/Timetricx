@@ -98,15 +98,42 @@ export default function Dashboard() {
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
         <div className="lg:col-span-1 space-y-6">
-          <Profile />
-          <WorkingTime />
+          {loading ? (
+            <div className={`p-6 rounded-xl shadow ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+              <div className="animate-pulse">
+                <div className="h-4 bg-gray-300 rounded w-3/4 mb-4"></div>
+                <div className="h-3 bg-gray-300 rounded w-1/2 mb-2"></div>
+                <div className="h-3 bg-gray-300 rounded w-2/3"></div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <Profile />
+              <WorkingTime />
+            </>
+          )}
         </div>
         <div className="lg:col-span-3 space-y-6">
-          <GitAndFaceAttendance/>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <TrackTeam/>
-            <CalenderAteendance />
-          </div>
+          {loading ? (
+            <div className={`p-6 rounded-xl shadow ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+              <div className="animate-pulse">
+                <div className="h-6 bg-gray-300 rounded w-1/4 mb-4"></div>
+                <div className="h-32 bg-gray-300 rounded mb-4"></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="h-24 bg-gray-300 rounded"></div>
+                  <div className="h-24 bg-gray-300 rounded"></div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <GitAndFaceAttendance/>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <TrackTeam/>
+                <CalenderAteendance />
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

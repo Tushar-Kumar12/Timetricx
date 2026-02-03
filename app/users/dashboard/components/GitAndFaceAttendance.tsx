@@ -3,7 +3,6 @@ import { useEffect, useState, useRef } from "react";
 import Cookies from "js-cookie";
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { useToast } from '../../../../contexts/ToastContext';
-import BeforeCheckOut from "./BeforeCheckOut";
 
 const getColor = (count:number) => {
   if(count === 0) return "#e5e7eb";
@@ -28,7 +27,6 @@ export default function GitAndFace() {
   const [workingHours, setWorkingHours] = useState(0);
   const [hasNotifiedCompletion, setHasNotifiedCompletion] = useState(false);
   const [showCompletionPopup, setShowCompletionPopup] = useState(false);
-  const [showBeforeCheckOut, setShowBeforeCheckOut] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -285,7 +283,31 @@ if (result.success) {
     stopCamera();
   };
 
-  if(!data) return null;
+  if(!data) {
+    return (
+      <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'} rounded-4xl shadow border ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'} p-6 transition-colors`}>
+        <div className="animate-pulse">
+          <div className={`h-6 bg-gray-300 rounded w-1/3 mb-4`}></div>
+          <div className="flex gap-6">
+            <div className="flex space-x-1">
+              {[...Array(12)].map((_, i) => (
+                <div key={i} className="flex flex-col gap-1">
+                  {[...Array(7)].map((_, j) => (
+                    <div key={j} className="w-3 h-3 bg-gray-300 rounded"></div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-6 space-y-3">
+            <div className="h-4 bg-gray-300 rounded w-2/3"></div>
+            <div className="h-4 bg-gray-300 rounded w-1/2"></div>
+            <div className="h-10 bg-gray-300 rounded w-full"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
 return (
   <>
@@ -331,11 +353,7 @@ return (
 
           <button
             onClick={() => {
-              if (isCheckedIn) {
-                setShowBeforeCheckOut(true);
-              } else {
-                startCamera();
-              }
+              startCamera();
             }}
             className={`w-full mb-4 py-2 rounded-lg text-white
               ${isCheckedIn ? "bg-red-600" : "bg-blue-600"}`}
@@ -496,16 +514,6 @@ return (
           </div>
         </div>
       )}
-
-      {/* BEFORE CHECKOUT MODAL */}
-      <BeforeCheckOut
-        isOpen={showBeforeCheckOut}
-        onClose={() => setShowBeforeCheckOut(false)}
-        onConfirm={() => {
-          setShowBeforeCheckOut(false);
-          startCamera(); // Start camera for face verification
-        }}
-      />
     </>
   );
 }
