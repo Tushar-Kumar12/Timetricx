@@ -22,7 +22,7 @@ export default function Dashboard() {
         }
         const userData = JSON.parse(userCookie);
         const email = userData?.email;
-        console.log(userData);
+        alert(userData.profilePicture);
         if (!email) {
           Cookies.remove('token');
           Cookies.remove('user');
@@ -83,7 +83,7 @@ export default function Dashboard() {
               </div>
               {user?.profilePicture ? (
                 <img 
-                  src={user.profilePicture} 
+                  src={user?.profilePicture} 
                   alt="Profile" 
                   className="w-10 h-10 rounded-full object-cover"
                 />
