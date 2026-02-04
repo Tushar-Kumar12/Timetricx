@@ -317,8 +317,8 @@ return (
           >
             {isCheckedIn ? "🚪 Check Out" : "📸 Check In"}
           </button>
-          <div className={`rounded-2xl p-1 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}`}>
-          <p className={`text-xs text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+          <div className={`rounded-2xl p-2 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}`}>
+          <p className={`text-xs text-center mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
             Total Attendance
           </p>
 
@@ -328,7 +328,7 @@ return (
 
           {/* Working Hours */}
           {isCheckedIn && (
-            <div className={`mt-4 p-3 rounded-lg ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}`}>
+            <div className={` p-2 rounded-lg ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}`}>
               <div className="flex justify-between items-center mb-2">
                 <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
                   {workingHours >= 7 ? "Completed Hours" : "Working Hours"}

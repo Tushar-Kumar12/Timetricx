@@ -3,6 +3,7 @@ import './globals.css'
 import Navbar from '../components/landing/Navbar'
 import { ThemeProvider } from '../contexts/ThemeContext'
 import { ToastProvider } from '../contexts/ToastContext'
+import ClientGuard from './ClientGuard'
 
 export const metadata: Metadata = {
   title: 'Timetricx',
@@ -19,8 +20,10 @@ export default function RootLayout({
       <body className="antialiased">
         <ThemeProvider>
           <ToastProvider>
-            <Navbar />
-            {children}
+            <ClientGuard>
+              <Navbar />
+              {children}
+            </ClientGuard>
           </ToastProvider>
         </ThemeProvider>
       </body>

@@ -8,6 +8,7 @@ import { Profile, WorkingTime, GitAndFaceAttendance, CalenderAteendance, TrackTe
 export default function Dashboard() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const [profilePicture, setProfilePicture] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const { theme } = useTheme();
 
@@ -16,7 +17,19 @@ export default function Dashboard() {
       try {
         const token = Cookies.get('token');
         const userCookie = Cookies.get('user');
-        if (!token ) {
+
+        if (userCookie) {
+          try {
+            const parsed = JSON.parse(userCookie);
+            if (parsed?.profilePicture) {
+              setProfilePicture(parsed.profilePicture);
+            }
+          } catch (err) {
+            console.error('Failed to parse user cookie', err);
+          }
+        }
+
+        if (!token) {
           router.push('/landing/auth/login');
           return;
         }
@@ -71,18 +84,18 @@ export default function Dashboard() {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className={`text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Dashboard</h1>
-            <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mt-2`}>Welcome back, {user?.name || 'User'}! Here's what's happening with your team today.</p>
+            <h1 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Dashboard</h1>
+            <p className={`text-green-600 mt-2 text-3xl font-semibold `}>Welcome back, {user?.name || 'User'}!</p>
           </div>
           {user && (
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Logged in as</p>
+                <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Logged in</p>
                 <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{user.email}</p>
               </div>
-              {user?.profilePicture ? (
+              {profilePicture || user?.profilePicture ? (
                 <img 
-                  src={user?.profilePicture} 
+                  src={profilePicture || user?.profilePicture} 
                   alt="Profile" 
                   className="w-10 h-10 rounded-full object-cover"
                 />
