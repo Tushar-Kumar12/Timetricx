@@ -51,7 +51,11 @@ export default function ProjectsPage() {
     checkProfile()
   }, [router])
 
-  if (allowed === null) return <Loading />
+  if (allowed === null) return (
+    <div className="mt-20">
+      <Loading />
+    </div>
+  )
   if (!allowed) return null
 
   return (

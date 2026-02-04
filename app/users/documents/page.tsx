@@ -1,4 +1,5 @@
 'use client';
+
 import { useEffect, useState } from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import Cookies from 'js-cookie';
@@ -11,21 +12,32 @@ import {
   Eye,
 } from 'lucide-react';
 
-
-
+/* =========================
+   CONSTANTS
+========================= */
 const DOCS = [
   { label: 'Aadhar Card', key: 'aadhar' },
   { label: 'College ID', key: 'collegeId' },
   { label: 'NOC', key: 'noc' },
 ];
 
+/* =========================
+   HELPERS
+========================= */
 const getUserFromCookies = () => {
   if (typeof document === 'undefined') return null;
+
   const cookie = document.cookie
     .split('; ')
     .find(row => row.startsWith('user='));
+
   if (!cookie) return null;
-  return JSON.parse(decodeURIComponent(cookie.split('=')[1]));
+
+  try {
+    return JSON.parse(decodeURIComponent(cookie.split('=')[1]));
+  } catch {
+    return null;
+  }
 };
 
 const getViewableUrl = (url: string) => {
@@ -37,43 +49,49 @@ const getViewableUrl = (url: string) => {
   return url;
 };
 
-
-
+/* =========================
+   COMPONENT
+========================= */
 export default function InternDocuments() {
   const { theme } = useTheme();
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+
   const [authLoading, setAuthLoading] = useState(true);
-  const userFromCookies = getUserFromCookies();
-  const email = userFromCookies?.email;
-  const [loading, setLoading] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [docsData, setDocsData] = useState<Record<string, string | null>>({});
-
-  // Check token validation
-  useEffect(() => {
-    const token = Cookies.get('token')
-    if (!token) {
-      window.location.href = '/landing/auth/login'
-      return
-    }
-  }, []);
-
-  // Show loading while authenticating
-  if (authLoading) {
-    return <div className={`p-10 text-center ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Loading...</div>;
-  }
+  const [loading, setLoading] = useState<string | null>(null);
 
   /* =========================
-     FETCH UPLOADED DOCS
+     AUTH CHECK
+  ========================= */
+  useEffect(() => {
+    const token = Cookies.get('token');
+    const userFromCookies = getUserFromCookies();
+
+    if (!token || !userFromCookies?.email) {
+      router.replace('/landing/auth/login');
+      return;
+    }
+
+    setUser(userFromCookies);
+    setAuthLoading(false);
+  }, [router]);
+
+  const email = user?.email;
+
+  /* =========================
+     FETCH DOCUMENTS
   ========================= */
   useEffect(() => {
     if (!email) return;
+
     const fetchDocs = async () => {
       try {
         const res = await fetch(
           `/api/users/documents/get-intern-documents?email=${email}`
         );
         const data = await res.json();
+
         if (data.success) {
           setDocsData(data.documents || {});
         }
@@ -81,27 +99,31 @@ export default function InternDocuments() {
         console.error('Failed to load documents', err);
       }
     };
+
     fetchDocs();
   }, [email]);
-
-
 
   /* =========================
      UPLOAD HANDLER
   ========================= */
   const uploadFile = async (file: File, docType: string) => {
     if (!email) return;
+
     setLoading(docType);
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('docType', docType);
     formData.append('email', email);
+
     try {
       const res = await fetch('/api/users/documents/intern-documents', {
         method: 'POST',
         body: formData,
       });
+
       const data = await res.json();
+
       if (data.success) {
         setDocsData(prev => ({
           ...prev,
@@ -115,12 +137,28 @@ export default function InternDocuments() {
     }
   };
 
+  /* =========================
+     LOADING SCREEN
+  ========================= */
+  if (authLoading) {
+    return (
+      <div
+        className={`min-h-screen flex items-center justify-center ${
+          theme === 'dark' ? 'text-white' : 'text-gray-900'
+        }`}
+      >
+        Loading...
+      </div>
+    );
+  }
 
-
+  /* =========================
+     UI
+  ========================= */
   return (
     <div
       className={`p-6 min-h-screen ${
-        theme === 'dark' ? 'bg-[#000000]' : 'bg-gray-50'
+        theme === 'dark' ? 'bg-black' : 'bg-gray-50'
       }`}
     >
       <div className="max-w-4xl mx-auto">
@@ -133,25 +171,20 @@ export default function InternDocuments() {
           >
             Documents
           </h1>
-          <p
-            className={`${
-              theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-            }`}
-          >
+          <p className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
             Upload and view your documents
           </p>
         </div>
-
-
 
         {/* Documents Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {DOCS.map(doc => {
             const uploadedUrl = docsData[doc.key];
+
             return (
               <div
                 key={doc.key}
-                className={`rounded-xl p-6 border transition-all hover:shadow-lg ${
+                className={`rounded-xl p-6 border ${
                   theme === 'dark'
                     ? 'bg-gray-800 border-gray-700'
                     : 'bg-white border-gray-200'
@@ -172,15 +205,11 @@ export default function InternDocuments() {
                     >
                       {doc.label}
                     </h3>
-                    <p className="text-xs text-gray-500">
-                      PDF, JPG, PNG
-                    </p>
+                    <p className="text-xs text-gray-500">PDF, JPG, PNG</p>
                   </div>
                 </div>
 
-
-
-                {/* Upload Input */}
+                {/* File Input */}
                 <input
                   type="file"
                   accept=".pdf,.jpg,.png"
@@ -193,19 +222,17 @@ export default function InternDocuments() {
                   id={`file-${doc.key}`}
                 />
 
-                {/* Upload / Preview Box */}
+                {/* Upload Box */}
                 <label
                   htmlFor={`file-${doc.key}`}
-                  className={`flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-4 cursor-pointer transition ${
+                  className={`flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-4 cursor-pointer ${
                     loading === doc.key ? 'opacity-50' : ''
                   }`}
                 >
                   {loading === doc.key ? (
                     <>
                       <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                      <span className="text-sm mt-1">
-                        Uploading...
-                      </span>
+                      <span className="text-sm mt-1">Uploading...</span>
                     </>
                   ) : uploadedUrl ? (
                     <>
@@ -230,42 +257,31 @@ export default function InternDocuments() {
                   ) : (
                     <>
                       <Upload className="w-6 h-6 text-gray-500" />
-                      <span className="text-sm mt-1">
-                        Click to upload
-                      </span>
+                      <span className="text-sm mt-1">Click to upload</span>
                     </>
                   )}
                 </label>
 
-
-
-                {/* View Section */}
+                {/* View */}
                 <div className="mt-4">
                   {uploadedUrl ? (
                     <button
                       onClick={() =>
-                        window.open(
-                          getViewableUrl(uploadedUrl),
-                          '_blank'
-                        )
+                        window.open(getViewableUrl(uploadedUrl), '_blank')
                       }
                       className="flex items-center gap-2 text-sm text-green-600 hover:underline"
                     >
                       <Eye className="w-4 h-4" />
-                       View document
+                      View document
                     </button>
                   ) : (
-                    <p className="text-xs text-gray-400">
-                      Not uploaded yet
-                    </p>
+                    <p className="text-xs text-gray-400">Not uploaded yet</p>
                   )}
                 </div>
               </div>
             );
           })}
         </div>
-
-
 
         {/* Info Box */}
         <div
@@ -278,8 +294,8 @@ export default function InternDocuments() {
           <div className="flex gap-3">
             <AlertCircle className="w-5 h-5 text-blue-600" />
             <p className="text-sm">
-              PDFs open in browser view mode. Re-upload will replace
-              the old document.
+              PDFs open in browser view mode. Re-upload will replace the old
+              document.
             </p>
           </div>
         </div>
@@ -287,4 +303,3 @@ export default function InternDocuments() {
     </div>
   );
 }
-
