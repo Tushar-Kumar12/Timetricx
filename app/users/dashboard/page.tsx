@@ -22,7 +22,6 @@ export default function Dashboard() {
         }
         const userData = JSON.parse(userCookie);
         const email = userData?.email;
-        alert(userData.profilePicture);
         if (!email) {
           Cookies.remove('token');
           Cookies.remove('user');
