@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import Cookies from 'js-cookie'
 import { useRouter } from 'next/navigation'
 import { useTheme } from '../../../contexts/ThemeContext'
+import Loading from '../../../components/ui/Loading'
 
 interface AttendanceRecord {
   date: string
@@ -128,7 +129,11 @@ useEffect(() => {
   const monthNames=["January","February","March","April","May","June","July","August","September","October","November","December"]
 
   if (loading) {
-    return <div className={`p-10 text-center ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Loading...</div>
+    return (
+      <div className="mt-20">
+        <Loading />
+      </div>
+    );
   }
 
   return (

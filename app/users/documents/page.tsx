@@ -11,6 +11,7 @@ import {
   Loader2,
   Eye,
 } from 'lucide-react';
+import Loading from '../../../components/ui/Loading';
 
 /* =========================
    CONSTANTS
@@ -142,12 +143,8 @@ export default function InternDocuments() {
   ========================= */
   if (authLoading) {
     return (
-      <div
-        className={`min-h-screen flex items-center justify-center ${
-          theme === 'dark' ? 'text-white' : 'text-gray-900'
-        }`}
-      >
-        Loading...
+      <div className="mt-20">
+        <Loading />
       </div>
     );
   }

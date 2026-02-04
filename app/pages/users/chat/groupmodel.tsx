@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTheme } from '../../../../contexts/ThemeContext';
 
 interface GroupModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialProjectName?: string | null;
 }
 
 interface Group {
@@ -40,7 +41,7 @@ const getUserFromCookies = () => {
   }
 };
 
-export default function GroupModal({ isOpen, onClose }: GroupModalProps) {
+export default function GroupModal({ isOpen, onClose, initialProjectName }: GroupModalProps) {
   const { theme } = useTheme();
 
   const [groups, setGroups] = useState<Group[]>([]);
@@ -55,6 +56,7 @@ export default function GroupModal({ isOpen, onClose }: GroupModalProps) {
 
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
   /* =========================
      1️⃣ FETCH GROUPS
@@ -92,7 +94,7 @@ export default function GroupModal({ isOpen, onClose }: GroupModalProps) {
   /* =========================
      2️⃣ GROUP CLICK → CHAT
   ========================= */
-  const handleGroupClick = async (group: Group) => {
+  const openGroupChat = useCallback(async (group: Group) => {
     if (!userEmail) return;
 
     setActiveGroup(group);
@@ -117,7 +119,37 @@ export default function GroupModal({ isOpen, onClose }: GroupModalProps) {
     } finally {
       setLoadingChat(false);
     }
+  }, [userEmail]);
+
+  const handleGroupClick = (group: Group) => {
+    void openGroupChat(group);
   };
+
+  useEffect(() => {
+    if (!isOpen) {
+      setView('groups');
+      setActiveGroup(null);
+      setMessages([]);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !initialProjectName || !userEmail || groups.length === 0) return;
+
+    const matchedGroup = groups.find(group => group.projectName === initialProjectName);
+    if (!matchedGroup) return;
+
+    void openGroupChat(matchedGroup);
+  }, [isOpen, initialProjectName, groups, userEmail, openGroupChat]);
+
+  useEffect(() => {
+    if (!messagesContainerRef.current) return;
+
+    messagesContainerRef.current.scrollTo({
+      top: messagesContainerRef.current.scrollHeight,
+      behavior: 'smooth',
+    });
+  }, [messages, view]);
 
   /* =========================
      3️⃣ SEND MESSAGE
@@ -345,7 +377,11 @@ export default function GroupModal({ isOpen, onClose }: GroupModalProps) {
           {view === 'chat' && (
             <div className="flex flex-col h-full">
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <div
+                ref={messagesContainerRef}
+                className="flex-1 overflow-y-auto p-6 scrollbar-hide"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
                 {loadingChat ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="flex flex-col items-center gap-3">
@@ -374,47 +410,49 @@ export default function GroupModal({ isOpen, onClose }: GroupModalProps) {
                     </div>
                   </div>
                 ) : (
-                  messages.map(msg => (
-                    <div
-                      key={msg._id}
-                      className={`flex ${msg.senderEmail === userEmail ? 'justify-end' : 'justify-start'}`}
-                    >
+                  <div className="flex min-h-full flex-col justify-end gap-4">
+                    {messages.map(msg => (
                       <div
-                        className={`max-w-[70%] px-4 py-3 rounded-2xl relative ${
-                          msg.senderEmail === userEmail
-                            ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white'
-                            : theme === 'dark'
-                            ? 'bg-gray-800 text-gray-300 border border-gray-700'
-                            : 'bg-white text-gray-700 border border-gray-200'
-                        }`}
+                        key={msg._id}
+                        className={`flex ${msg.senderEmail === userEmail ? 'justify-end' : 'justify-start'}`}
                       >
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                        <div
+                          className={`max-w-[70%] px-4 py-3 rounded-2xl relative ${
                             msg.senderEmail === userEmail
-                              ? 'bg-white/20 text-white'
-                              : 'bg-gradient-to-br from-blue-400 to-purple-500 text-white'
-                          }`}>
-                            {msg.senderEmail.charAt(0).toUpperCase()}
+                              ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white'
+                              : theme === 'dark'
+                              ? 'bg-gray-800 text-gray-300 border border-gray-700'
+                              : 'bg-white text-gray-700 border border-gray-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                              msg.senderEmail === userEmail
+                                ? 'bg-white/20 text-white'
+                                : 'bg-gradient-to-br from-blue-400 to-purple-500 text-white'
+                            }`}>
+                              {msg.senderEmail.charAt(0).toUpperCase()}
+                            </div>
+                            <span className={`text-xs ${
+                              msg.senderEmail === userEmail
+                                ? 'text-blue-100'
+                                : theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                            }`}>
+                              {msg.senderEmail}
+                            </span>
                           </div>
-                          <span className={`text-xs ${
+                          <p className="text-sm leading-relaxed pr-12">{msg.message}</p>
+                          <p className={`text-xs absolute bottom-2 right-3 ${
                             msg.senderEmail === userEmail
                               ? 'text-blue-100'
                               : theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
                           }`}>
-                            {msg.senderEmail}
-                          </span>
+                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
                         </div>
-                        <p className="text-sm leading-relaxed pr-12">{msg.message}</p>
-                        <p className={`text-xs absolute bottom-2 right-3 ${
-                          msg.senderEmail === userEmail
-                            ? 'text-blue-100'
-                            : theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                        }`}>
-                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
                       </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 )}
               </div>
 

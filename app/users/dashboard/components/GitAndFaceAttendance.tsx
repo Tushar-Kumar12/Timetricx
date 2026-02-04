@@ -1,8 +1,14 @@
 'use client'
+
 import { useEffect, useState, useRef } from "react";
 import Cookies from "js-cookie";
+import * as faceapi from "face-api.js";
+
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { useToast } from '../../../../contexts/ToastContext';
+
+import { loadFaceModels } from "../../../../utils/loadFaceModels.client";
+import { matchFacesClient } from "../../../../utils/matchFaces.client";
 
 const getColor = (count:number) => {
   if(count === 0) return "#e5e7eb";
@@ -29,17 +35,24 @@ export default function GitAndFace() {
   const [showCompletionPopup, setShowCompletionPopup] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const profileImgRef = useRef<HTMLImageElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Check token validation
+  // ------------------ LOAD FACE MODELS (ONCE) ------------------
   useEffect(() => {
-    const token = Cookies.get('token')
+    loadFaceModels()
+      .then(() => console.log("✅ Face models loaded (client)"))
+      .catch(() => error("Face models load nahi ho paaye"));
+  }, []);
+
+  // ------------------ AUTH CHECK ------------------
+  useEffect(() => {
+    const token = Cookies.get('token');
     if (!token) {
-      window.location.href = '/landing/auth/login'
-      return
+      window.location.href = '/landing/auth/login';
     }
-  }, [])
+  }, []);
 
   // ------------------ GIT DATA ------------------
   useEffect(() => {
@@ -65,188 +78,133 @@ export default function GitAndFace() {
     if (!userCookie) return;
 
     const user = JSON.parse(userCookie);
-
     const res = await fetch(`/api/attendance/get-attendance?email=${user.email}`);
     const result = await res.json();
 
     if(result.success){
       setAttendancePercentage(result.data.percentage);
       setIsCheckedIn(result.data.todayEntry);
-      setAttendanceData(result.data); // {percentage,todayEntry,records}
+      setAttendanceData(result.data);
     }
   };
 
   useEffect(() => {
     fetchAttendance();
   }, []);
-useEffect(() => {
-  const savedTime = Cookies.get('checkin_time')
 
-  if (savedTime) {
-    setIsCheckedIn(true)
-  }
-}, [])
-
-  // ------------------ WORKING HOURS CALCULATOR ------------------
-const calculateWorkingHours = () => {
-  let entryTime: Date | null = null
-
-  // 1️⃣ COOKIE PRIORITY (reload-safe)
-  const cookieTime = Cookies.get('checkin_time')
-  if (cookieTime) {
-    entryTime = new Date(cookieTime)
-  }
-
-  // 2️⃣ FALLBACK TO DB (safety)
-  if (!entryTime && attendanceData?.records) {
-    const today = new Date().toISOString().split('T')[0]
-    const todayRecord = attendanceData.records.find(
-      (r: any) => r.date === today
-    )
-
-    if (todayRecord?.entryTime) {
-      const [time, meridian] = todayRecord.entryTime.split(' ')
-      const [hh, mm] = time.split(':').map(Number)
-
-      let h = hh
-      if (meridian === 'PM' && hh !== 12) h += 12
-      if (meridian === 'AM' && hh === 12) h = 0
-
-      entryTime = new Date()
-      entryTime.setHours(h, mm, 0, 0)
-    }
-  }
-
-  if (!entryTime) return
-
-  const now = new Date()
-  const diff =
-    (now.getTime() - entryTime.getTime()) / (1000 * 60 * 60)
-
-  const hours = Math.min(Math.max(0, diff), 7)
-
-  setWorkingHours(hours)
-
-  if (hours >= 7 && !hasNotifiedCompletion) {
-    notifyCompletion()
-    setHasNotifiedCompletion(true)
-  }
-}
-
-  // ------------------ INTERVAL ------------------
   useEffect(() => {
-
-    if(!isCheckedIn || !attendanceData?.records) return;
-
-    // 🔥 page load pe turant calculate
-    calculateWorkingHours();
-
-    // 🔁 har 10 min update
-    intervalRef.current = setInterval(() => {
-      calculateWorkingHours();
-    }, 600000);
-
-    return () => {
-      if(intervalRef.current){
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-
-  }, [isCheckedIn, attendanceData]);
-
-  // ------------------ WORKING HOURS COMPLETION POPUP ------------------
-  const notifyCompletion = () => {
-    setShowCompletionPopup(true);
-    
-    // Hide popup after 2 seconds
-    setTimeout(() => {
-      setShowCompletionPopup(false);
-    }, 2000);
-  };
-
-  // ------------------ CLEANUP ------------------
-  useEffect(() => {
-    return () => stopCamera();
+    if (Cookies.get('checkin_time')) setIsCheckedIn(true);
   }, []);
 
-  // ------------------ START CAMERA ------------------
-  const startCamera = async () => {
+  // ------------------ WORKING HOURS ------------------
+  const calculateWorkingHours = () => {
+    let entryTime: Date | null = null;
 
+    const cookieTime = Cookies.get('checkin_time');
+    if (cookieTime) entryTime = new Date(cookieTime);
+
+    if (!entryTime && attendanceData?.records) {
+      const today = new Date().toISOString().split('T')[0];
+      const rec = attendanceData.records.find((r:any)=>r.date===today);
+      if (rec?.entryTime) {
+        const [time, meridian] = rec.entryTime.split(' ');
+        let [hh, mm] = time.split(':').map(Number);
+        if (meridian === 'PM' && hh !== 12) hh += 12;
+        if (meridian === 'AM' && hh === 12) hh = 0;
+        entryTime = new Date();
+        entryTime.setHours(hh, mm, 0, 0);
+      }
+    }
+
+    if (!entryTime) return;
+
+    const diff = (Date.now() - entryTime.getTime()) / (1000 * 60 * 60);
+    const hours = Math.min(Math.max(0, diff), 7);
+    setWorkingHours(hours);
+
+    if (hours >= 7 && !hasNotifiedCompletion) {
+      setShowCompletionPopup(true);
+      setHasNotifiedCompletion(true);
+      setTimeout(()=>setShowCompletionPopup(false),2000);
+    }
+  };
+
+  useEffect(() => {
+    if(!isCheckedIn || !attendanceData?.records) return;
+    calculateWorkingHours();
+    intervalRef.current = setInterval(calculateWorkingHours, 600000);
+    return () => intervalRef.current && clearInterval(intervalRef.current);
+  }, [isCheckedIn, attendanceData]);
+
+  // ------------------ CAMERA ------------------
+  const startCamera = async () => {
     setShowCamera(true);
     setCameraReady(false);
 
     setTimeout(async () => {
       try{
         const stream = await navigator.mediaDevices.getUserMedia({
-          video:{
-            width:{ideal:640},
-            height:{ideal:480},
-            facingMode:"user"
-          }
+          video:{ width:{ideal:640}, height:{ideal:480}, facingMode:"user" }
         });
-
         if(!videoRef.current) return;
-
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
-
         await videoRef.current.play();
         setCameraReady(true);
-
-      }catch(err){
+      }catch{
         error("Camera open nahi ho raha");
       }
     },500);
   };
 
-  // ------------------ STOP CAMERA ------------------
   const stopCamera = () => {
-    if(streamRef.current){
-      streamRef.current.getTracks().forEach(t=>t.stop());
-      streamRef.current=null;
-    }
+    streamRef.current?.getTracks().forEach(t=>t.stop());
+    streamRef.current=null;
     setShowCamera(false);
     setCountdown(0);
   };
 
-  // ------------------ COUNTDOWN ------------------
+  // ------------------ CAPTURE & VERIFY ------------------
   const captureAndMarkAttendance = async () => {
-
-    if(!cameraReady){
-      error("Camera ready nahi hai");
-      return;
-    }
+    if(!cameraReady) return error("Camera ready nahi hai");
 
     setCountdown(2);
-
     let t=2;
     const timer = setInterval(()=>{
-      t--;
-      setCountdown(t);
-
-      if(t===0){
-        clearInterval(timer);
-        takePhoto();
-      }
+      t--; setCountdown(t);
+      if(t===0){ clearInterval(timer); takePhoto(); }
     },1000);
   };
 
-  // ------------------ TAKE PHOTO ------------------
   const takePhoto = async () => {
-
     setLoading(true);
 
     const canvas = document.createElement("canvas");
     canvas.width = videoRef.current!.videoWidth;
     canvas.height = videoRef.current!.videoHeight;
-
-    const ctx = canvas.getContext("2d")!;
-    ctx.drawImage(videoRef.current!,0,0);
+    canvas.getContext("2d")!.drawImage(videoRef.current!,0,0);
 
     const imageData = canvas.toDataURL("image/jpeg");
-    const user = JSON.parse(Cookies.get("user")!);
 
+    const liveImg = new Image();
+    liveImg.src = imageData;
+    await new Promise(res => liveImg.onload = res);
+
+    if(!profileImgRef.current){
+      error("Profile image missing");
+      setLoading(false);
+      return;
+    }
+
+    const match = await matchFacesClient(liveImg, profileImgRef.current);
+    if(!match.success || !match.match){
+      error("Face mismatch");
+      setLoading(false);
+      stopCamera();
+      return;
+    }
+
+    const user = JSON.parse(Cookies.get("user")!);
     const apiUrl = isCheckedIn
       ? "/api/attendance/face-checkout"
       : "/api/attendance/face-attendance";
@@ -254,28 +212,18 @@ const calculateWorkingHours = () => {
     const res = await fetch(apiUrl,{
       method:"POST",
       headers:{ "Content-Type":"application/json" },
-      body:JSON.stringify({
-        email:user.email,
-        faceImage:imageData
-      })
+      body:JSON.stringify({ email:user.email, verified:true })
     });
 
     const result = await res.json();
 
-if (result.success) {
+    if(result.success){
+      if(!isCheckedIn) Cookies.set('checkin_time', new Date().toISOString(), {expires:1});
+      else Cookies.remove('checkin_time');
 
-  if (!isCheckedIn) {
-    // ✅ save check-in time in cookie
-    const now = new Date().toISOString()
-    Cookies.set('checkin_time', now, { expires: 1 }) // 1 day
-  } else {
-    // checkout → clear cookie
-    Cookies.remove('checkin_time')
-  }
-
-  success(isCheckedIn ? "Checked Out ✔" : "Attendance Marked ✔")
-  await fetchAttendance()
-}else{
+      success(isCheckedIn ? "Checked Out ✔" : "Attendance Marked ✔");
+      await fetchAttendance();
+    } else {
       error(result.message);
     }
 
@@ -311,6 +259,15 @@ if (result.success) {
 
 return (
   <>
+  <img
+  ref={profileImgRef}
+  src={JSON.parse(Cookies.get("user") || "{}")?.profilePicture}
+  alt="profile"
+  crossOrigin="anonymous"
+  style={{ display: "none" }}
+/>
+
+
     {/* MAIN CARD */}
     <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'} rounded-4xl shadow border ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'} p-6 transition-colors`}>
 

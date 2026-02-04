@@ -3,57 +3,26 @@ import connectDB from "../../../../lib/database";
 import { User } from "../../../../models/User";
 import { FaceAttendance } from "../../../../models/FaceAttendance";
 
-function normalizeBase64Image(img: string) {
-  // already proper base64 with header
-  if (img.startsWith("data:image")) return img;
-
-  // raw base64 → force jpeg header
-  return `data:image/jpeg;base64,${img}`;
-}
-
 export async function POST(req: Request) {
   try {
-    const { email, faceImage } = await req.json();
+    const { email, verified } = await req.json();
 
-    if (!email || !faceImage) {
+    // 🔐 basic validation
+    if (!email || verified !== true) {
       return NextResponse.json({
         success: false,
-        message: "Email and face image are required",
+        message: "Face not verified",
       });
     }
 
     await connectDB();
 
+    // 🔹 check user
     const user = await User.findOne({ email });
-    if (!user?.profilePicture) {
+    if (!user) {
       return NextResponse.json({
         success: false,
-        message: "Profile picture not found",
-      });
-    }
-
-    // 🔥🔥 IMAGE FIX HERE 🔥🔥
-    const safeFaceImage = normalizeBase64Image(faceImage);
-
-    // 🔥 CALL JS FACE API SERVER
-    const faceRes = await fetch("https://face-api-js-rho.vercel.app/verify-face", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        live: safeFaceImage,           // ✅ ALWAYS VALID IMAGE
-        stored: user.profilePicture,   // cloudinary url (already ok)
-      }),
-    });
-
-    const faceData = await faceRes.json();
-
-    if (!faceData.success || faceData.distance > 0.45) {
-      return NextResponse.json({
-        success: false,
-        message: "Face mismatch",
-        distance: faceData.distance,
+        message: "User not found",
       });
     }
 
@@ -71,6 +40,7 @@ export async function POST(req: Request) {
 
     let doc = await FaceAttendance.findOne({ userEmail: email });
 
+    // 🆕 first ever attendance
     if (!doc) {
       doc = new FaceAttendance({
         userEmail: email,
@@ -98,6 +68,7 @@ export async function POST(req: Request) {
       });
     }
 
+    // 🔎 find month
     let monthBlock = doc.months.find(
       (m: any) => m.monthName === monthName
     );
@@ -107,6 +78,7 @@ export async function POST(req: Request) {
       doc.months.push(monthBlock);
     }
 
+    // ⛔ already marked
     if (monthBlock.records.find((r: any) => r.date === today)) {
       return NextResponse.json({
         success: false,
@@ -114,6 +86,7 @@ export async function POST(req: Request) {
       });
     }
 
+    // ✅ mark attendance
     monthBlock.records.push({
       date: today,
       entryTime: time,
