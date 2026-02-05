@@ -1,10 +1,24 @@
+import { Buffer } from 'buffer'
 import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '../../../../../lib/database'
 import { User } from '../../../../../models/User'
 import cloudinary from '../../../../../lib/cloudinary'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
+    /* ---------- ENV CHECK ---------- */
+
+    const { CLOUD_NAME, CLOUD_API_KEY, CLOUD_API_SECRET } = process.env
+    if (!CLOUD_NAME || !CLOUD_API_KEY || !CLOUD_API_SECRET) {
+      return NextResponse.json(
+        { success: false, message: 'Cloudinary environment variables are missing' },
+        { status: 500 }
+      )
+    }
+
     /* ---------- FORM DATA ---------- */
 
     const data = await request.formData()
@@ -63,7 +77,7 @@ export async function POST(request: NextRequest) {
       user.profilePicture = uploadedImage
 
     } catch (err) {
-      console.log('Cloudinary error:', err)
+      console.error('Cloudinary upload error:', err)
       return NextResponse.json(
         { success: false, message: 'Image upload failed' },
         { status: 500 }

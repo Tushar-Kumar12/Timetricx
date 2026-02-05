@@ -10,47 +10,29 @@ function normalizeBase64Image(img: string) {
 
 export async function POST(req: Request) {
   try {
-    const { email, faceImage } = await req.json();
+    const { email, verified } = await req.json();
     await connectDB();
 
-    if (!email || !faceImage) {
+    if (!email) {
       return NextResponse.json({
         success: false,
-        message: "Email and face image are required",
+        message: "Email is required",
+      });
+    }
+
+    // 🔐 extra safety (optional but recommended)
+    if (!verified) {
+      return NextResponse.json({
+        success: false,
+        message: "Face verification required",
       });
     }
 
     const user = await User.findOne({ email });
-    if (!user?.profilePicture) {
+    if (!user) {
       return NextResponse.json({
         success: false,
-        message: "Profile picture not found",
-      });
-    }
-
-    // 🔥 NORMALIZE IMAGE (VERY IMPORTANT)
-    const safeFaceImage = normalizeBase64Image(faceImage);
-
-    // 🔥 FACE API SERVER CALL (JS / PYTHON – doesn’t matter)
-    const faceRes = await fetch(
-      "http://localhost:5000/verify-face",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          live: safeFaceImage,
-          stored: user.profilePicture,
-        }),
-      }
-    );
-
-    const faceData = await faceRes.json(); // ✅ ONLY ONCE
-
-    if (!faceData.success || faceData.distance > 0.45) {
-      return NextResponse.json({
-        success: false,
-        message: "Face mismatch",
-        distance: faceData.distance,
+        message: "User not found",
       });
     }
 
@@ -87,7 +69,7 @@ export async function POST(req: Request) {
     if (!todayRecord) {
       return NextResponse.json({
         success: false,
-        message: "Entry not found, mark attendance first",
+        message: "Entry not found",
       });
     }
 
@@ -98,7 +80,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // 🔥 ADD EXIT TIME
     todayRecord.exitTime = exitTime;
     doc.markModified("months");
     await doc.save();
@@ -106,13 +87,10 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       message: "Checked out successfully",
-      data: {
-        date: today,
-        exitTime,
-      },
+      data: { date: today, exitTime },
     });
   } catch (err) {
-    console.log("FACE CHECKOUT ERROR:", err);
+    console.error("FACE CHECKOUT ERROR:", err);
     return NextResponse.json({
       success: false,
       message: "Server error",

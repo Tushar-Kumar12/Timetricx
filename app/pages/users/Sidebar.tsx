@@ -25,58 +25,40 @@ export default function Sidebar() {
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
 
-  // Logout function
+  // ---------------- LOGOUT ----------------
   const handleLogout = () => {
-    // Clear all cookies
     Cookies.remove('token');
     Cookies.remove('user');
-    
-    // Clear any other auth-related cookies
-    document.cookie.split(';').forEach(cookie => {
-      const eqPos = cookie.indexOf('=');
-      const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
-      if (name.includes('token') || name.includes('user') || name.includes('auth')) {
-        Cookies.remove(name);
-      }
+    document.cookie.split(';').forEach(c => {
+      const name = c.split('=')[0].trim();
+      Cookies.remove(name);
     });
-    
-    // Redirect to login page
     window.location.href = '/landing/auth/login';
   };
 
-  /* =========================
-     FETCH INTERNS (SEARCH)
-  ========================= */
+  // ---------------- FETCH INTERNS ----------------
   useEffect(() => {
     const controller = new AbortController();
 
     const fetchInterns = async () => {
       try {
         setLoading(true);
-
         const res = await fetch(
           `/api/users/sidebar/get-interns?search=${encodeURIComponent(
             searchTerm
           )}`,
           { signal: controller.signal }
         );
-
         const data = await res.json();
-
-        if (data.success) {
-          setInterns(data.interns);
-        }
+        if (data.success) setInterns(data.interns);
       } catch (err: any) {
-        if (err.name !== 'AbortError') {
-          console.error('Intern fetch error', err);
-        }
+        if (err.name !== 'AbortError') console.error(err);
       } finally {
         setLoading(false);
       }
     };
 
-    const t = setTimeout(fetchInterns, 400); // debounce
-
+    const t = setTimeout(fetchInterns, 400);
     return () => {
       clearTimeout(t);
       controller.abort();
@@ -85,16 +67,56 @@ export default function Sidebar() {
 
   return (
     <>
+      {/* 🔥 RAY LINE + MICRO ANIMATIONS */}
+      <style jsx global>{`
+        .ray-left,
+        .ray-right {
+          position: absolute;
+          top: 0;
+          height: 2px;
+          width: 50%;
+          background: linear-gradient(
+            to right,
+            transparent,
+            #2563eb,
+            transparent
+          );
+          filter: drop-shadow(0 0 6px #2563eb);
+        }
+
+        .ray-left {
+          left: -50%;
+          animation: rayLeft 2.8s linear infinite;
+        }
+
+        .ray-right {
+          right: -50%;
+          animation: rayRight 2.8s linear infinite;
+        }
+
+        @keyframes rayLeft {
+          0% { left: -50%; opacity: 0 }
+          40% { opacity: 1 }
+          100% { left: 50%; opacity: 0 }
+        }
+
+        @keyframes rayRight {
+          0% { right: -50%; opacity: 0 }
+          40% { opacity: 1 }
+          100% { right: 50%; opacity: 0 }
+        }
+      `}</style>
+
       {/* SIDEBAR */}
       <div
-        className={`w-80 border-l h-60rem flex flex-col ${
+        className={`w-80 h-60rem flex flex-col transition-colors duration-300 ${
           theme === 'dark'
-            ? 'bg-[#000000] border-gray-700'
+            ? 'bg-black border-gray-700'
             : 'bg-white border-gray-200'
         }`}
       >
         {/* SEARCH */}
-        <div className="p-4 border-b">
+        <div className="p-4">
           <div className="flex gap-2">
             <input
               type="text"
@@ -109,10 +131,10 @@ export default function Sidebar() {
             />
             <button
               onClick={handleLogout}
-              className={`px-3 py-2 rounded-lg border flex items-center justify-center gap-2 transition-colors ${
+              className={`px-3 py-2 rounded-lg border transition hover:scale-105 ${
                 theme === 'dark'
-                  ? 'bg-red-900/20 border-red-700 text-red-400 hover:bg-red-900/30'
-                  : 'bg-red-50 border-red-300 text-red-600 hover:bg-red-100'
+                  ? 'bg-red-900/20 border-red-700 text-red-400'
+                  : 'bg-red-50 border-red-300 text-red-600'
               }`}
               title="Logout"
             >
@@ -121,17 +143,28 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* HEADER */}
-        <div className="p-4 border-b">
+        {/* HEADER WITH RAYS */}
+        <div className="p-4 relative overflow-hidden">
+          <div className="relative h-[2px] mb-3">
+            <span className="ray-left" />
+            <span className="ray-right" />
+          </div>
+
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-lg font-semibold">Interns</h3>
-            <span className="text-sm bg-blue-500 text-white px-2 py-1 rounded-full">
+            <span className="text-sm bg-blue-600 text-white px-3 py-1 rounded-full shadow">
               Unpaid
             </span>
           </div>
+
           <p className="text-sm text-gray-500">
             Salaries and incentive
           </p>
+
+          <div className="relative h-[2px] mt-3">
+            <span className="ray-left" />
+            <span className="ray-right" />
+          </div>
         </div>
 
         {/* INTERN LIST */}
@@ -146,21 +179,23 @@ export default function Sidebar() {
                 <div
                   key={member.id}
                   onClick={() => setSelectedEmail(member.email)}
-                  className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer ${
-                    theme === 'dark'
+                  className={`
+                    group flex items-center gap-3 p-3 rounded-xl cursor-pointer
+                    transition-all duration-300 hover:scale-[1.02]
+                    ${theme === 'dark'
                       ? 'hover:bg-gray-900'
-                      : 'hover:bg-gray-50'
-                  }`}
+                      : 'hover:bg-gray-50'}
+                  `}
                 >
                   {/* AVATAR */}
                   {member.avatar ? (
                     <img
                       src={member.avatar}
                       alt={member.name}
-                      className="w-10 h-10 rounded-full object-cover"
+                      className="w-10 h-10 rounded-full object-cover transition-transform duration-300 group-hover:scale-110"
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm transition-transform duration-300 group-hover:scale-110">
                       {member.initials}
                     </div>
                   )}
@@ -177,7 +212,7 @@ export default function Sidebar() {
 
                   {/* ARROW */}
                   <svg
-                    className="w-5 h-5 text-gray-400 flex-shrink-0"
+                    className="w-5 h-5 text-gray-400 transition-all duration-300 group-hover:translate-x-1 group-hover:text-blue-600"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -201,21 +236,19 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* FLOATING CHAT BUTTON */}
+      {/* FLOATING CHAT */}
       <div
-        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg cursor-pointer z-40"
+        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg cursor-pointer z-40 animate-pulse hover:scale-110 transition"
         onClick={() => setIsChatModalOpen(true)}
       >
         💬
       </div>
 
-      {/* CHAT MODAL */}
       <GroupModal
         isOpen={isChatModalOpen}
         onClose={() => setIsChatModalOpen(false)}
       />
 
-      {/* PROFILE MODAL */}
       <ProfileModal
         email={selectedEmail}
         onClose={() => setSelectedEmail(null)}

@@ -84,7 +84,8 @@ const UserSchema: Schema = new Schema(
     workingType: {
       type: String,
       enum: ['intern', 'employee', 'freelancer'],
-      default: ''
+      required: false,
+      default: undefined
     },
     profilePicture: {
       type: String,

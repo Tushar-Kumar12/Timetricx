@@ -9,9 +9,7 @@ export default function Profile() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [showRoleModal, setShowRoleModal] = useState(false);
-  const [selectedRole, setSelectedRole] = useState('');
-  const [roleData, setRoleData] = useState({ company: '', position: '', department: '' });
+  const [uploading, setUploading] = useState(false);
 
   // Check token validation
   useEffect(() => {
@@ -65,33 +63,43 @@ export default function Profile() {
     fetchUserDetails();
   }, []);
 
-  const handleRoleSubmit = async () => {
+  const handleProfileUpload = async (file: File) => {
+    if (!user?.email) {
+      error('User email missing. Please re-login.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('email', user.email);
+    formData.append('image', file);
+
     try {
-      const response = await fetch('/api/update-role', {
+      setUploading(true);
+      const response = await fetch('/api/users/dashboard/upload-profile', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: user.email,
-          role: selectedRole,
-          data: roleData
-        }),
+        body: formData,
       });
 
       const result = await response.json();
-      
-      if (response.ok && result.success) {
-        success('Role updated successfully!');
-        setShowRoleModal(false);
-        setSelectedRole('');
-        setRoleData({ company: '', position: '', department: '' });
-      } else {
-        error(result.message || 'Failed to update role');
+
+      if (!response.ok || !result.success) {
+        error(result.message || 'Profile update failed');
+        return;
       }
-    } catch (error) {
-      console.error('Role update error:', error);
-      error('Failed to update role');
+
+      const updatedUser = {
+        ...user,
+        profilePicture: result.data?.profilePicture || user.profilePicture,
+      };
+
+      setUser(updatedUser);
+      Cookies.set('user', JSON.stringify(updatedUser), { expires: 365 });
+      success('Profile picture updated!');
+    } catch (err) {
+      console.error('Profile upload error:', err);
+      error('Profile update failed');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -155,15 +163,14 @@ export default function Profile() {
                   input.onchange = (e) => {
                     const file = (e.target as HTMLInputElement).files?.[0];
                     if (file) {
-                      // Handle file upload here
-                      console.log('Uploading new picture:', file);
+                      void handleProfileUpload(file);
                     }
                   };
                   input.click();
                 }}
                 className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700"
               >
-                Upload New Picture
+                {uploading ? 'Uploading...' : 'Upload New Picture'}
               </button>
             </div>
           )}
@@ -186,71 +193,6 @@ export default function Profile() {
           </div>
         </div>
       </div>
-
-      {/* Role Modal */}
-      {showRoleModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-96 max-w-full mx-4">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">
-              {selectedRole === 'working' ? 'Working Role' : 'Role 2'}
-            </h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
-                <input
-                  type="text"
-                  value={roleData.company}
-                  onChange={(e) => setRoleData({...roleData, company: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter company name"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
-                <input
-                  type="text"
-                  value={roleData.position}
-                  onChange={(e) => setRoleData({...roleData, position: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter position"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                <input
-                  type="text"
-                  value={roleData.department}
-                  onChange={(e) => setRoleData({...roleData, department: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter department"
-                />
-              </div>
-            </div>
-            
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowRoleModal(false);
-                  setSelectedRole('');
-                  setRoleData({ company: '', position: '', department: '' });
-                }}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleRoleSubmit}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
