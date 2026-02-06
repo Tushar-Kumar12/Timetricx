@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTheme } from '../../../../contexts/ThemeContext';
+import { emojis }  from '../../../../utils/getEmojis';
 
 interface GroupModalProps {
   isOpen: boolean;
@@ -56,6 +57,7 @@ export default function GroupModal({ isOpen, onClose, initialProjectName }: Grou
 
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
   /* =========================
@@ -462,6 +464,15 @@ export default function GroupModal({ isOpen, onClose, initialProjectName }: Grou
               }`}>
                 <div className="flex gap-3">
                   <div className="flex-1 relative">
+                    {/* Emoji toggle */}
+                    <button
+                      type="button"
+                      onClick={() => setShowEmojiPicker(prev => !prev)}
+                      className={`absolute left-2 top-1/2 -translate-y-1/2 text-xl
+                      ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}
+                    >
+                      😊
+                    </button>
                     <input
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
@@ -472,7 +483,7 @@ export default function GroupModal({ isOpen, onClose, initialProjectName }: Grou
                         }
                       }}
                       placeholder="Type your message..."
-                      className={`w-full px-4 py-3 rounded-xl border outline-none transition-colors ${
+                      className={`w-full pl-9 pr-10 py-3 rounded-xl border outline-none transition-colors ${
                         theme === 'dark'
                           ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500'
                           : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-500 focus:border-blue-500'
@@ -481,6 +492,31 @@ export default function GroupModal({ isOpen, onClose, initialProjectName }: Grou
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
                       {newMessage.length}/500
                     </div>
+
+                    {/* Simple emoji panel */}
+{showEmojiPicker && (
+  <div
+    className={`absolute bottom-full mb-2 left-0 z-20 w-64 rounded-xl shadow-lg border
+    ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
+  >
+    <div className="max-h-64 overflow-y-auto p-2 grid grid-cols-6 gap-1 text-xl">
+      {emojis.map(emoji => (
+        <button
+          key={emoji}
+          type="button"
+          className="hover:scale-110 transition-transform"
+          onClick={() => {
+            setNewMessage(prev => prev + emoji);
+            setShowEmojiPicker(false);
+          }}
+        >
+          {emoji}
+        </button>
+      ))}
+    </div>
+  </div>
+)}
+
                   </div>
 
                   <button

@@ -21,6 +21,8 @@ function SignupContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [isOtpLoading, setIsOtpLoading] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const [lastOtpResendAt, setLastOtpResendAt] = useState<number | null>(null);
+  const [otpCooldown, setOtpCooldown] = useState(0);
   const [userData, setUserData] = useState({ 
     fullName: '', 
     profilePicture: '' as File | string, 
@@ -48,6 +50,17 @@ function SignupContent() {
       }
     }
   }, [searchParams]);
+
+  // OTP resend countdown
+  useEffect(() => {
+    if (!otpCooldown) return;
+
+    const timer = setTimeout(() => {
+      setOtpCooldown(prev => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [otpCooldown]);
 
   // Handle email/password signup
   const handleEmailSignup = async () => {
@@ -230,6 +243,44 @@ const handleOtpVerification = async () => {
     error('OTP verification failed. Please try again.');
   } finally {
     setIsOtpLoading(false);
+  }
+};
+
+// Resend OTP
+const handleOtpResend = async () => {
+  if (!signupEmail) {
+    error('Signup email not found');
+    return;
+  }
+
+  // 1 min cooldown between resend attempts
+  if (otpCooldown > 0) {
+    error(`Please wait ${otpCooldown}s before resending OTP again`);
+    return;
+  }
+
+  const now = Date.now();
+  setLastOtpResendAt(now);
+  setOtpCooldown(60);
+
+  try {
+    const response = await fetch('/api/auth/resend-otp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email: signupEmail }),
+    });
+
+    const result = await response.json();
+
+    if (response.ok && result.success) {
+      success('OTP resent to your email');
+    } else {
+      error(result.message || 'Failed to resend OTP');
+    }
+  } catch (err) {
+    error('Failed to resend OTP. Please try again.');
   }
 };
 
@@ -541,7 +592,14 @@ const handleOtpChange = (index: number, value: string) => {
         </button>
 
         <p className="text-xs text-white/60 text-center mt-4">
-          Didn't receive OTP? <button className="text-purple-400 hover:text-purple-300 underline">Resend</button>
+          Didn't receive OTP?{' '}
+          <button
+            type="button"
+            onClick={handleOtpResend}
+            className="text-purple-400 hover:text-purple-300 underline"
+          >
+            Resend{otpCooldown > 0 ? ` (${otpCooldown}s)` : ''}
+          </button>
         </p>
 
       </div>

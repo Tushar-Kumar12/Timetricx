@@ -64,7 +64,7 @@ export default function UsersLayout({
   <div className="flex-1 flex flex-col">
     <Navbar activeTab={getActiveTab()} setActiveTab={handleTabChange} />
     
-    <main className={`flex-1 overflow-y-auto ${theme === 'dark' ? 'bg-[#000000]' : 'bg-gray-50'}`}>
+    <main className={`flex-1 overflow-y-auto  ${theme === 'dark' ? 'bg-[#000000]' : 'bg-gray-50'}`}>
       {children}
     </main>
   </div>

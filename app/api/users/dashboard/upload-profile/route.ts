@@ -7,10 +7,22 @@ import cloudinary from '../../../../../lib/cloudinary'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+/* ---------------- HELPER ---------------- */
+const getPublicIdFromUrl = (url: string) => {
+  try {
+    const parts = url.split('/')
+    const fileName = parts[parts.length - 1]
+    const folderPath = parts.slice(parts.indexOf('upload') + 1, parts.length - 1).join('/')
+    const publicId = `${folderPath}/${fileName.split('.')[0]}`
+    return publicId
+  } catch {
+    return null
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     /* ---------- ENV CHECK ---------- */
-
     const { CLOUD_NAME, CLOUD_API_KEY, CLOUD_API_SECRET } = process.env
     if (!CLOUD_NAME || !CLOUD_API_KEY || !CLOUD_API_SECRET) {
       return NextResponse.json(
@@ -20,7 +32,6 @@ export async function POST(request: NextRequest) {
     }
 
     /* ---------- FORM DATA ---------- */
-
     const data = await request.formData()
     const email = data.get('email') as string
     const file = data.get('image') as File | null
@@ -40,9 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     /* ---------- DB ---------- */
-
     await connectDB()
-
     const user = await User.findOne({ email })
 
     if (!user) {
@@ -52,8 +61,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    /* ---------- CLOUDINARY ---------- */
+    /* ---------- DELETE OLD IMAGE ---------- */
+    if (user.profilePicture) {
+      const oldPublicId = getPublicIdFromUrl(user.profilePicture)
 
+      if (oldPublicId) {
+        try {
+          await cloudinary.uploader.destroy(oldPublicId)
+        } catch (err) {
+          console.warn('Old image delete failed:', err)
+          // ❗ intentionally not failing upload
+        }
+      }
+    }
+
+    /* ---------- UPLOAD NEW IMAGE ---------- */
     let uploadedImage = ''
 
     try {
@@ -85,7 +107,6 @@ export async function POST(request: NextRequest) {
     }
 
     /* ---------- SAVE ---------- */
-
     await user.save()
 
     return NextResponse.json({
@@ -97,7 +118,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.log(error)
+    console.error(error)
     return NextResponse.json(
       { success: false, message: 'Server error' },
       { status: 500 }

@@ -26,6 +26,8 @@ export default function Login() {
   const [isResetLoading, setIsResetLoading] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [userToken, setUserToken] = useState('');
+  const [lastOtpResendAt, setLastOtpResendAt] = useState<number | null>(null);
+  const [otpCooldown, setOtpCooldown] = useState(0);
   const [userData, setUserData] = useState({ 
     fullName: '', 
     profilePicture: '' as File | string, 
@@ -79,6 +81,17 @@ useEffect(() => {
 
     checkProviders()
   }, [router])
+
+  // OTP resend countdown
+  useEffect(() => {
+    if (!otpCooldown) return
+
+    const timer = setTimeout(() => {
+      setOtpCooldown(prev => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [otpCooldown])
 
 // Handle email/password login
 const handleEmailLogin = async () => {
@@ -326,9 +339,19 @@ const handleProfilePictureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       return;
     }
 
+    // 1 min cooldown between resend attempts
+    if (otpCooldown > 0) {
+      error(`Please wait ${otpCooldown}s before resending OTP again`);
+      return;
+    }
+
+    const now = Date.now();
+    setLastOtpResendAt(now);
+    setOtpCooldown(60);
+
     setIsLoading(true);
     try {
-      const response = await fetch('/api/auth/forgot-password/resend', {
+      const response = await fetch('/api/auth/resend-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -740,7 +763,14 @@ const handleProfilePictureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
               </button>
 
               <p className="text-xs text-white/60 text-center mt-4">
-                Didn't receive OTP? <button onClick={handleOtpResend} className="text-purple-400 hover:text-purple-300 underline">Resend</button>
+                Didn't receive OTP?{' '}
+                <button
+                  type="button"
+                  onClick={handleOtpResend}
+                  className="text-purple-400 hover:text-purple-300 underline"
+                >
+                  Resend{otpCooldown > 0 ? ` (${otpCooldown}s)` : ''}
+                </button>
               </p>
 
             </div>

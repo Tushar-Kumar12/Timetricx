@@ -88,6 +88,19 @@ export default function GitAndFace() {
     }
   };
 
+  const handleCheckButtonClick = () => {
+    // For checkout, always allow
+    if (isCheckedIn) {
+      startCamera();
+      return;
+    }
+
+    // For check-in, validate shift + time first
+    if (!canCheckInNow()) return;
+
+    startCamera();
+  };
+
   useEffect(() => {
     fetchAttendance();
   }, []);
@@ -95,6 +108,70 @@ export default function GitAndFace() {
   useEffect(() => {
     if (Cookies.get('checkin_time')) setIsCheckedIn(true);
   }, []);
+
+  // ------------------ SHIFT / TIME VALIDATION ------------------
+  const canCheckInNow = (): boolean => {
+    const userCookie = Cookies.get('user');
+    if (!userCookie) {
+      error('User session not found');
+      return false;
+    }
+
+    let user: any;
+    try {
+      user = JSON.parse(userCookie);
+    } catch {
+      error('Invalid user session');
+      return false;
+    }
+alert(user.shift)
+    const shift = user.shift;
+
+    const now = new Date();
+    const h = now.getHours();
+    const m = now.getMinutes();
+    const minutes = h * 60 + m;
+
+    if (shift === 'night') {
+      // Night shift: 9:00 PM (21:00) - 10:30 PM (22:30)
+      const start = 21 * 60;
+      const end = 22 * 60 + 30;
+
+      if (minutes < start) {
+        error('Night shift has not started yet. Check-in allowed at 9:00 PM.');
+        return false;
+      }
+
+      if (minutes > end) {
+        error('Too late for night shift check-in. try again tomorrow 9:00 PM.');
+        return false;
+      }
+
+      return true;
+    }
+
+    // Day shift: 9:00 AM - 10:30 AM, too-late window until 4:00 PM
+    const start = 9 * 60;
+    const end = 10 * 60 + 30;
+    const tooLateEnd = 16 * 60; // 4 PM
+
+    if (minutes < start) {
+      error('Day shift has not started yet. Check-in allowed at 9:00 AM. ');
+      return false;
+    }
+
+    if (minutes > end && minutes <= tooLateEnd) {
+      error('Too late for day shift check-in. try again tomorrow 9:00 AM.');
+      return false;
+    }
+
+    if (minutes > tooLateEnd) {
+      error('Day shift check-in window is over for today.');
+      return false;
+    }
+
+    return true;
+  };
 
   // ------------------ WORKING HOURS ------------------
   const calculateWorkingHours = () => {
@@ -309,9 +386,7 @@ return (
         <div className={`w-130 -mt-15 -mb-4 bg-[#00c950] rounded-2xl p-2 shadow transition-colors`}>
 
           <button
-            onClick={() => {
-              startCamera();
-            }}
+            onClick={handleCheckButtonClick}
             className={`w-full mb-4 py-2 rounded-lg text-white
               ${isCheckedIn ? "bg-red-600" : "bg-blue-600"}`}
           >
@@ -353,45 +428,49 @@ return (
             </div>
           )}
 
-          {/* TODAY RECORD */}
-          {attendanceData?.records && (
+          {/* LATEST ATTENDANCE RECORD */}
+          {attendanceData?.records && attendanceData.records.length > 0 && (
             <div className={`mt-4 p-3 rounded-lg ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}`}>
 
-              <p className={`text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                Today's Record
-              </p>
-
               {(() => {
-                const today = new Date().toISOString().split("T")[0];
+                // Pick the most recent record by date
+                const latestRecord = [...attendanceData.records].sort(
+                  (a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()
+                )[0];
 
-                const todayRecord = attendanceData.records.find(
-                  (r:any)=>r.date===today
-                );
-
-                if (todayRecord) {
+                if (!latestRecord) {
                   return (
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                          Entry: {todayRecord.entryTime || 'Not marked'}
-                        </span>
-                      </div>
-
-                      {todayRecord.exitTime && (
-                        <div className="flex justify-between text-xs">
-                          <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                            Exit: {todayRecord.exitTime}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    <p className={`text-xs text-gray-500`}>
+                      No attendance records available
+                    </p>
                   );
                 }
 
                 return (
-                  <p className={`text-xs text-gray-500`}>
-                    No attendance record for today
-                  </p>
+                  <>
+                    <p className={`text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Latest Attendance
+                    </p>
+                    <p className={`text-[11px] mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Date: {latestRecord.date}
+                    </p>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                          Entry: {latestRecord.entryTime || 'Not marked'}
+                        </span>
+                      </div>
+
+                      {latestRecord.exitTime && (
+                        <div className="flex justify-between text-xs">
+                          <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                            Exit: {latestRecord.exitTime}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </>
                 );
               })()}
             </div>

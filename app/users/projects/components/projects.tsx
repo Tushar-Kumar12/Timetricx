@@ -8,7 +8,8 @@ import {
   Search,
   Calendar,
   CheckCircle,
-  Users
+  Users,
+  ListChecks
 } from 'lucide-react'
 
 interface Project {
@@ -19,6 +20,7 @@ interface Project {
   priority: 'low' | 'medium' | 'high'
   progress: number
   deadline: string
+  descriptionDriveLink?: string
   tasks: {
     completed: number
     total: number
@@ -147,9 +149,23 @@ export default function ProjectsComponent() {
                 </span>
               </div>
 
-              {/* DESC */}
-              <p className="mt-2 text-sm text-gray-500">{p.description}</p>
 
+
+              {/* DESC + VIEW TASKS ICON (opens Drive link) */}
+              <div className="flex justify-between items-center mt-2">
+                <p className="text-sm text-gray-500">{p.description}</p>
+                <button
+                  type="button"
+                  className="text-blue-600 cursor-pointer hover:text-blue-700 transition-colors disabled:opacity-40 disabled:cursor-default"
+                  disabled={!p.descriptionDriveLink}
+                  onClick={() => {
+                    if (!p.descriptionDriveLink) return
+                    window.open(p.descriptionDriveLink, '_blank', 'noopener,noreferrer')
+                  }}
+                >
+                  <ListChecks size={26} />
+                </button>
+              </div>
               {/* PROGRESS */}
               <div className="mt-4">
                 <div className="flex justify-between text-sm">
