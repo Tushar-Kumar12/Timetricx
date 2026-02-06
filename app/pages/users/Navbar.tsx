@@ -1,7 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Sun, Moon } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  LayoutDashboard,
+  CalendarDays,
+  FolderKanban,
+  Users,
+  FileText,
+  Sun,
+  Moon,
+} from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 interface NavbarProps {
@@ -10,75 +18,101 @@ interface NavbarProps {
 }
 
 export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
-  const [user, setUser] = useState<any>(null);
   const { theme, toggleTheme } = useTheme();
-
-  useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      try {
-        setUser(JSON.parse(userData));
-      } catch (error) {
-        console.error('Error parsing user data:', error);
-        localStorage.removeItem('user');
-      }
-    }
-  }, []);
+  const [hovered, setHovered] = useState<string | null>(null);
 
   const navItems = [
-    { name: 'Dashboard', icon: '📊' },
-    { name: 'Calendar', icon: '📅' },
-    { name: 'Projects', icon: '📁' },
-    { name: 'Team', icon: '👥' },
-    { name: 'Documents', icon: '📄' }
+    { name: 'Dashboard', icon: LayoutDashboard },
+    { name: 'Calendar', icon: CalendarDays },
+    { name: 'Projects', icon: FolderKanban },
+    { name: 'Team', icon: Users },
+    { name: 'Documents', icon: FileText },
   ];
 
   return (
-    <div className={`${theme === 'dark' ? 'bg-[#000000]' : 'bg-white'} shadow-sm transition-colors`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo Section */}
-          <div className="flex items-center">
-            {/* Timetricx Logo */}
-            <img 
-              src="/Timetricx logo.svg" 
-              alt="Timetricx" 
-              className="h-8 w-auto mr-3"
-            />
-            
-            {/* Brand Name */}
-            <span className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+    <div
+      className={`sticky top-0 z-50 border-b transition-colors ${
+        theme === 'dark'
+          ? 'bg-black border-gray-800'
+          : 'bg-white border-gray-200'
+      }`}
+    >
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="flex items-center justify-between h-16">
+          {/* LOGO */}
+          <div className="flex items-center gap-3">
+            <img src="/Timetricx logo.svg" alt="Timetricx" className="h-8" />
+            <span
+              className={`text-xl font-semibold ${
+                theme === 'dark' ? 'text-white' : 'text-gray-800'
+              }`}
+            >
               Timetricx
             </span>
           </div>
 
-          {/* Navigation Buttons */}
-          <div className="flex items-center justify-between mr-30">
-            <div className="flex space-x-2">
-              {navItems.map((item) => (
+          {/* NAV ITEMS */}
+          <div className="flex items-center gap-2 mr-10">
+            {navItems.map(item => {
+              const Icon = item.icon;
+
+              const isActive = activeTab === item.name;
+              const isHover = hovered === item.name;
+
+              const showText = isActive || isHover;
+
+              return (
                 <button
                   key={item.name}
                   onClick={() => setActiveTab(item.name)}
-                  className={`px-6 py-2 rounded-full font-medium transition-all duration-200 ${
-                    activeTab === item.name
-                      ? 'bg-green-500 text-white shadow-lg'
-                      : theme === 'dark' 
-                        ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
+                  onMouseEnter={() => setHovered(item.name)}
+                  onMouseLeave={() => setHovered(null)}
+                  className={`
+                    flex items-center gap-2
+                    h-10
+                    px-3
+                    rounded-full
+                    overflow-hidden
+                    transition-all duration-300 ease-out
+                    ${
+                      isActive
+                        ? 'bg-green-500 text-white shadow-md'
+                        : theme === 'dark'
+                        ? 'text-gray-400 hover:bg-gray-900'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }
+                  `}
+                  style={{
+                    width: showText ? 140 : 44,
+                  }}
                 >
-                  <span className="mr-2">{item.icon}</span>
-                  {item.name}
-                </button>
-              ))}
-            </div>
+                  <Icon className="w-5 h-5 shrink-0" />
 
-            {/* Theme Toggle */}
+                  <span
+                    className={`whitespace-nowrap text-sm font-medium transition-opacity duration-200 ${
+                      showText ? 'opacity-100' : 'opacity-0'
+                    }`}
+                  >
+                    {item.name}
+                  </span>
+                </button>
+              );
+            })}
+
+            {/* THEME TOGGLE */}
             <button
               onClick={toggleTheme}
-              className={`ml-4 p-2 rounded-lg ${theme === 'dark' ? 'bg-gray-800 text-yellow-400 hover:bg-gray-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'} transition-colors`}
+              className={`ml-2 p-2 rounded-lg transition-colors ${
+                theme === 'dark'
+                  ? 'bg-gray-800 text-yellow-400 hover:bg-gray-700'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
             >
-              {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              {theme === 'dark' ? (
+                <Sun className="w-5 h-5" />
+              ) : (
+                <Moon className="w-5 h-5" />
+              )}
             </button>
           </div>
         </div>

@@ -416,14 +416,14 @@ const handleOtpChange = (index: number, value: string) => {
       </p>
     </div>
 
-    <div className="flex gap-3 mt-6">
+    {/* <div className="flex gap-3 mt-6">
       <button className="h-10 w-10 font-bold rounded-full bg-red-400 text-black">
         ←
       </button>
       <button className="h-10 w-10 font-bold rounded-full bg-green-400 text-black">
         →
       </button>
-    </div>
+    </div> */}
 
     {/* FLOATING INFO CARD */}
     <div className="relative w-3/4 

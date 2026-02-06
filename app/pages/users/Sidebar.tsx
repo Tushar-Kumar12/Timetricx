@@ -158,7 +158,7 @@ export default function Sidebar() {
           </div>
 
           <p className="text-sm text-gray-500">
-            Salaries and incentive
+            Top 10 Interns
           </p>
 
           <div className="relative h-[2px] mt-3">

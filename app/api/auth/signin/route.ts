@@ -50,8 +50,8 @@ export async function POST(request: NextRequest) {
     const hasGithub = !!user.authProviders?.github?.id
     const hasGoogle = !!user.authProviders?.google?.id
 
-    // ✅ Allow login if user has at least one provider OR no providers (email-only account)
-    if (hasGithub || hasGoogle || (!hasGithub && !hasGoogle)) {
+    // ✅ Allow login if user has both providers 
+    if (hasGithub && hasGoogle ) {
       /* ---------- Generate token ---------- */
 
       const token = generateToken({

@@ -84,7 +84,7 @@ export default function CompleteProfilePage() {
       }
 
       success('Profile updated successfully!')
-      router.push('/users/projects')
+      router.push('/users/dashboard')
     } catch (error) {
       console.error('Error saving profile:', error)
       error('Failed to save profile. Please try again.')

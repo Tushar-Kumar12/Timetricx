@@ -130,7 +130,7 @@ export default function TeamProjectCarousel() {
           ${theme === 'dark' ? 'text-white' : 'text-gray-900'}
         `}
       >
-        Team Project Load
+        Team Project Lead
       </h3>
 
       {/* 🔥 AUTO CAROUSEL */}

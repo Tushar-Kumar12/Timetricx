@@ -31,8 +31,8 @@ export async function POST(req: NextRequest) {
     const hasGoogle = !!user.authProviders?.google?.id
     const hasGithub = !!user.authProviders?.github?.id
 
-    // ✅ agar koi ek bhi linked ho
-    const hasAnyProvider = hasGoogle || hasGithub
+    // ✅ agar dono providers linked hai
+    const hasAnyProvider = hasGoogle && hasGithub
 
     return NextResponse.json({
       success: true,
