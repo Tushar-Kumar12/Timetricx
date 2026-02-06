@@ -74,7 +74,7 @@ export default function Dashboard() {
       <style jsx>{`
         .ray-border {
           position: relative;
-          border-radius: 16px;
+          border-radius: 50rem;
           padding: 2px;
           overflow: hidden;
         }
@@ -115,7 +115,7 @@ export default function Dashboard() {
         .ray-content {
           position: relative;
           z-index: 2;
-          border-radius: 14px;
+          border-radius: 50rem;
           padding: 10px;
           background: ${theme === 'dark' ? '#000000' : '#ffffff'};
         }
@@ -160,7 +160,7 @@ export default function Dashboard() {
                 {profilePicture ? (
                   <img
                     src={profilePicture}
-                    className="w-10 h-10 rounded-xl object-cover"
+                    className="w-10 h-10 rounded-3xl object-cover"
                     alt="profile"
                   />
                 ) : (

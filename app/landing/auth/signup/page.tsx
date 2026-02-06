@@ -5,6 +5,7 @@ import { useToast } from '../../../../contexts/ToastContext';
 import Cookies from 'js-cookie';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Loading from '../../../../components/ui/Loading';
+import { Eye, EyeOff } from 'lucide-react';
 
 function SignupContent() {
   const { theme } = useTheme();
@@ -14,6 +15,8 @@ function SignupContent() {
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showGoogleModal, setShowGoogleModal] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [userToken, setUserToken] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isOtpLoading, setIsOtpLoading] = useState(false);
@@ -49,8 +52,8 @@ function SignupContent() {
   // Handle email/password signup
   const handleEmailSignup = async () => {
     const email = (document.querySelector('input[type="email"]') as HTMLInputElement)?.value;
-    const password = (document.querySelectorAll('input[type="password"]')[0] as HTMLInputElement)?.value;
-    const confirmPassword = (document.querySelectorAll('input[type="password"]')[1] as HTMLInputElement)?.value;
+    const password = (document.getElementById('signup-password') as HTMLInputElement)?.value;
+    const confirmPassword = (document.getElementById('signup-confirm-password') as HTMLInputElement)?.value;
 
   if (!email || !password || !confirmPassword) {
     error('Please fill in all fields');
@@ -308,24 +311,44 @@ const handleOtpChange = (index: number, value: string) => {
 
               <div>
                 <label className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Password</label>
-                <input
-                  type="password"
-                  placeholder="********"
-                  className="w-full mt-1 px-5 py-3 
-                  rounded-full bg-black/30 
-                  border border-white/20 focus:outline-none"
-                />
+                <div className="relative mt-1">
+                  <input
+                    id="signup-password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="********"
+                    className="w-full px-5 py-3 pr-12
+                    rounded-full bg-black/30 
+                    border border-white/20 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(prev => !prev)}
+                    className="absolute inset-y-0 right-4 flex items-center text-gray-300 hover:text-white"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
 
               <div>
                 <label className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Confirm Password</label>
-                <input
-                  type="password"
-                  placeholder="********"
-                  className="w-full mt-1 px-5 py-3 
-                  rounded-full bg-black/30 
-                  border border-white/20 focus:outline-none"
-                />
+                <div className="relative mt-1">
+                  <input
+                    id="signup-confirm-password"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="********"
+                    className="w-full px-5 py-3 pr-12
+                    rounded-full bg-black/30 
+                    border border-white/20 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(prev => !prev)}
+                    className="absolute inset-y-0 right-4 flex items-center text-gray-300 hover:text-white"
+                  >
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
 
               <button 

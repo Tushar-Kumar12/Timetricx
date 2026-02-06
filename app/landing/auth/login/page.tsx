@@ -4,7 +4,8 @@ import { useTheme } from '../../../../contexts/ThemeContext';
 import { useToast } from '../../../../contexts/ToastContext';
 import Cookies from 'js-cookie';
 import { useRouter } from 'next/navigation';
-  import Loading from '../../../../components/ui/Loading';
+import Loading from '../../../../components/ui/Loading';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function Login() {
   const { theme } = useTheme();
@@ -15,6 +16,7 @@ export default function Login() {
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showGoogleModal, setShowGoogleModal] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [resetToken, setResetToken] = useState('');
   const [otpCode, setOtpCode] = useState(['', '', '', '', '', '']);
@@ -462,13 +464,22 @@ const handleProfilePictureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
 
               <div>
                 <label className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Password</label>
-                <input
-                  type="password"
-                  placeholder="********"
-                  className={`w-full mt-1 px-5 py-3 
-                  rounded-full ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white/30 border-white/30 text-black'} 
-                  focus:outline-none`}
-                />
+                <div className="relative mt-1">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="********"
+                    className={`w-full px-5 py-3 pr-12
+                    rounded-full ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white/30 border-white/30 text-black'} 
+                    focus:outline-none`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(prev => !prev)}
+                    className="absolute inset-y-0 right-4 flex items-center text-gray-400 hover:text-gray-200"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
 
               <div className={`flex justify-end text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -955,7 +966,7 @@ const handleProfilePictureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
 
           {/* OUTER CURVED CARD (SAME AS RIGHT PANEL) */}
           <div
-            className="relative w-full md:w-1/2 
+            className="relative w-full md:w-130 
             p-6 text-white 
             bg-gradient-to-br from-black 
             via-[#121629] to-[#050816] 

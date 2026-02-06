@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import Cookies from 'js-cookie';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import {
   Upload,
   FileText,
@@ -62,9 +63,7 @@ export default function InternDocuments() {
   const [docsData, setDocsData] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState<string | null>(null);
 
-  /* =========================
-     AUTH CHECK
-  ========================= */
+  /* AUTH */
   useEffect(() => {
     const token = Cookies.get('token');
     const userFromCookies = getUserFromCookies();
@@ -80,9 +79,7 @@ export default function InternDocuments() {
 
   const email = user?.email;
 
-  /* =========================
-     FETCH DOCUMENTS
-  ========================= */
+  /* FETCH DOCS */
   useEffect(() => {
     if (!email) return;
 
@@ -104,9 +101,7 @@ export default function InternDocuments() {
     fetchDocs();
   }, [email]);
 
-  /* =========================
-     UPLOAD HANDLER
-  ========================= */
+  /* UPLOAD */
   const uploadFile = async (file: File, docType: string) => {
     if (!email) return;
 
@@ -138,9 +133,6 @@ export default function InternDocuments() {
     }
   };
 
-  /* =========================
-     LOADING SCREEN
-  ========================= */
   if (authLoading) {
     return (
       <div className="mt-20">
@@ -149,18 +141,21 @@ export default function InternDocuments() {
     );
   }
 
-  /* =========================
-     UI
-  ========================= */
   return (
     <div
-      className={`p-6 min-h-screen ${
-        theme === 'dark' ? 'bg-black' : 'bg-gray-50'
+      className={`min-h-screen p-6 ${
+        theme === 'dark'
+          ? 'bg-gradient-to-br from-black to-gray-900'
+          : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'
       }`}
     >
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
+      <div className="max-w-5xl mx-auto">
+        {/* HEADER */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-10"
+        >
           <h1
             className={`text-3xl font-bold mb-2 ${
               theme === 'dark' ? 'text-white' : 'text-gray-900'
@@ -169,27 +164,36 @@ export default function InternDocuments() {
             Documents
           </h1>
           <p className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
-            Upload and view your documents
+            Upload and view your important documents
           </p>
-        </div>
+        </motion.div>
 
-        {/* Documents Grid */}
+        {/* GRID */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {DOCS.map(doc => {
+          {DOCS.map((doc, i) => {
             const uploadedUrl = docsData[doc.key];
 
             return (
-              <div
+              <motion.div
                 key={doc.key}
-                className={`rounded-xl p-6 border ${
+                initial={{ opacity: 0, y: 25 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.08 }}
+                whileHover={{ y: -8, scale: 1.02 }}
+                className={`relative rounded-2xl p-6 overflow-hidden shadow-xl cursor-pointer
+                ${
                   theme === 'dark'
-                    ? 'bg-gray-800 border-gray-700'
-                    : 'bg-white border-gray-200'
+                    ? 'bg-white/5 border border-white/10'
+                    : 'bg-white border'
                 }`}
               >
-                {/* Title */}
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                {/* GLOW */}
+                <div className="pointer-events-none absolute -inset-6 opacity-0 hover:opacity-100 transition
+                  bg-[radial-gradient(circle_at_30%_30%,rgba(59,130,246,0.35),transparent_60%)] blur-2xl" />
+
+                {/* TITLE */}
+                <div className="relative flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
                     <FileText className="w-6 h-6 text-blue-600" />
                   </div>
                   <div>
@@ -206,7 +210,7 @@ export default function InternDocuments() {
                   </div>
                 </div>
 
-                {/* File Input */}
+                {/* FILE INPUT */}
                 <input
                   type="file"
                   accept=".pdf,.jpg,.png"
@@ -219,11 +223,15 @@ export default function InternDocuments() {
                   id={`file-${doc.key}`}
                 />
 
-                {/* Upload Box */}
+                {/* UPLOAD AREA */}
                 <label
                   htmlFor={`file-${doc.key}`}
-                  className={`flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-4 cursor-pointer ${
-                    loading === doc.key ? 'opacity-50' : ''
+                  className={`relative z-10 flex flex-col items-center justify-center
+                  border-2 border-dashed rounded-xl p-4 transition
+                  ${
+                    loading === doc.key
+                      ? 'opacity-50'
+                      : 'hover:border-blue-500'
                   }`}
                 >
                   {loading === doc.key ? (
@@ -244,7 +252,7 @@ export default function InternDocuments() {
                         <img
                           src={uploadedUrl}
                           alt="Preview"
-                          className="w-full h-32 object-cover rounded-md"
+                          className="w-full h-32 object-cover rounded-lg"
                         />
                       )}
                       <span className="text-xs text-gray-400 mt-2">
@@ -259,8 +267,8 @@ export default function InternDocuments() {
                   )}
                 </label>
 
-                {/* View */}
-                <div className="mt-4">
+                {/* VIEW */}
+                <div className="relative mt-4">
                   {uploadedUrl ? (
                     <button
                       onClick={() =>
@@ -275,27 +283,29 @@ export default function InternDocuments() {
                     <p className="text-xs text-gray-400">Not uploaded yet</p>
                   )}
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
 
-        {/* Info Box */}
-        <div
-          className={`mt-8 p-4 rounded-lg ${
+        {/* INFO */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className={`mt-10 p-4 rounded-xl flex gap-3 items-start
+          ${
             theme === 'dark'
-              ? 'bg-gray-800 border border-gray-700'
+              ? 'bg-white/5 border border-white/10'
               : 'bg-blue-50 border border-blue-200'
           }`}
         >
-          <div className="flex gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-600" />
-            <p className="text-sm">
-              PDFs open in browser view mode. Re-upload will replace the old
-              document.
-            </p>
-          </div>
-        </div>
+          <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
+          <p className="text-sm">
+            PDFs open in browser view mode. Re-uploading a document will replace
+            the existing one.
+          </p>
+        </motion.div>
       </div>
     </div>
   );

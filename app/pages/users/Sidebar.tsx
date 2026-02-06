@@ -153,7 +153,7 @@ export default function Sidebar() {
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-lg font-semibold">Interns</h3>
             <span className="text-sm bg-blue-600 text-white px-3 py-1 rounded-full shadow">
-              Unpaid
+              Highlighted Interns
             </span>
           </div>
 

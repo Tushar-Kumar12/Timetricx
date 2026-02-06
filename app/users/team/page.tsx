@@ -19,23 +19,27 @@ export default function TeamPage() {
       return
     }
     setLoading(false)
-  },[]);
+  }, [])
 
   if (loading) {
     return (
       <div className="mt-20">
         <Loading />
       </div>
-    );
+    )
   }
 
   return (
-    <div className={`flex gap-6 p-6 ${theme === 'dark' ? 'bg-[#000000]' : 'bg-gray-50'}`}>
-      {/* LEFT OVERVIEW */}
+    <div
+      className={`flex flex-col gap-6 p-6 ${
+        theme === 'dark' ? 'bg-[#000000]' : 'bg-gray-50'
+      }`}
+    >
+      {/* TOP OVERVIEW */}
       <OverallDetail />
-      {/* RIGHT CONTENT */}
+
+      {/* BOTTOM CONTENT */}
       <Teams />
     </div>
   )
 }
-

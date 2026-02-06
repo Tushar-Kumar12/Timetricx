@@ -1,9 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Cookies from 'js-cookie'
-import { useRouter } from 'next/navigation'
 import { useTheme } from '../../../contexts/ThemeContext'
 import Loading from '../../../components/ui/Loading'
+import { motion } from 'framer-motion'
 
 interface AttendanceRecord {
   date: string
@@ -13,210 +13,204 @@ interface AttendanceRecord {
 
 export default function CalendarPage() {
   const { theme } = useTheme()
-  const router = useRouter()
   const [records, setRecords] = useState<AttendanceRecord[]>([])
   const [currentDate, setCurrentDate] = useState(new Date())
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const token = Cookies.get('token')
+    if (!token) window.location.href = '/landing/auth/login'
+  }, [])
+
+  useEffect(() => {
     fetchAttendance()
   }, [currentDate])
 
-useEffect(() => {
-  const token = Cookies.get('token')
-  if (!token) {
-    window.location.href = '/landing/auth/login'
-    return
-  }
-}, [])
-
   const fetchAttendance = async () => {
     try {
-      const userCookie = Cookies.get("user")
-      if (!userCookie) return
-      const user = JSON.parse(userCookie)
-      const year = currentDate.getFullYear()
-      const month = currentDate.getMonth() + 1
+      const user = JSON.parse(Cookies.get('user') || '{}')
       const res = await fetch(
-        `/api/attendance/get-calendar-attendance?email=${user.email}&year=${year}&month=${month}`
+        `/api/attendance/get-calendar-attendance?email=${user.email}`
       )
-      const result = await res.json()
-      if (result.success) {
-        setRecords(result.data.records || [])
-      }
-    } catch (err) {
-      console.error(err)
+      const data = await res.json()
+      if (data.success) setRecords(data.data.records || [])
     } finally {
       setLoading(false)
     }
   }
 
+  /* ---------------- TIME HELPERS ---------------- */
 
-
-  const getDaysInMonth = (date: Date) =>
-    new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
-
-  const getFirstDay = (date: Date) =>
-    new Date(date.getFullYear(), date.getMonth(), 1).getDay()
-
-  // 🔥 STATUS LOGIC
-  const getStatus = (day: number) => {
-    const year = currentDate.getFullYear()
-    const month = currentDate.getMonth()
-    const cellDate = new Date(year, month, day)
-    const today = new Date()
-    cellDate.setHours(0,0,0,0)
-    today.setHours(0,0,0,0)
-    const dateStr =
-      `${year}-${(month+1).toString().padStart(2,'0')}-${day
-        .toString()
-        .padStart(2,'0')}`
-    const record = records.find(r => r.date === dateStr)
-    if(cellDate > today){
-      return "future"
-    }
-    if(cellDate.getTime() === today.getTime()){
-      if(record && record.entryTime && !record.exitTime){
-        return "today-active" // 🔵 animated
-      }
-      if(record){
-        return "present"
-      }
-      return "absent"
-    }
-    if(record){
-      return "present"
-    }
-    return "absent"
+  const parseTime = (time: string) => {
+    const [t, meridian] = time.split(' ')
+    let [h, m] = t.split(':').map(Number)
+    if (meridian === 'PM' && h !== 12) h += 12
+    if (meridian === 'AM' && h === 12) h = 0
+    return h * 60 + m
   }
+
+  const getWorkedHours = (entry: string, exit?: string) => {
+    const start = parseTime(entry)
+    const end = exit
+      ? parseTime(exit)
+      : new Date().getHours() * 60 + new Date().getMinutes()
+    return Math.max(0, (end - start) / 60)
+  }
+
+  /* ---------------- CALENDAR ---------------- */
+
+  const getDaysInMonth = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+
+  const getFirstDay = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), 1).getDay()
 
   const renderCalendar = () => {
+    const year = currentDate.getFullYear()
+    const month = currentDate.getMonth()
     const daysInMonth = getDaysInMonth(currentDate)
     const firstDay = getFirstDay(currentDate)
-    const days:any[] = []
-    for(let i=0;i<firstDay;i++){
-      days.push(<div key={`e${i}`} />)
-    }
-    for(let day=1;day<=daysInMonth;day++){
-      const status = getStatus(day)
-      let bg = theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-      let text = theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-      if(status==="present"){
-        bg = theme === 'dark' ? 'bg-green-600 text-white' : 'bg-green-500 text-white'
+
+    const cells: any[] = []
+
+    for (let i = 0; i < firstDay; i++) cells.push(<div key={`e${i}`} />)
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day)
+      const dateStr = `${year}-${(month + 1)
+        .toString()
+        .padStart(2, '0')}-${day.toString().padStart(2, '0')}`
+
+      const record = records.find(r => r.date === dateStr)
+      const isWeekend = date.getDay() === 0 || date.getDay() === 6
+      const isFuture = date > new Date()
+
+      let style: any = {}
+      let label = ''
+
+      if (isWeekend) {
+        style = {
+          background: 'linear-gradient(135deg,#9ca3af,#6b7280)',
+          color: '#111'
+        }
+        label = 'Holiday'
+      } else if (isFuture) {
+        style = {
+          background:
+            theme === 'dark'
+              ? 'linear-gradient(135deg,#374151,#1f2933)'
+              : 'linear-gradient(135deg,#e5e7eb,#f9fafb)'
+        }
+      } else if (record?.entryTime) {
+        const hours = getWorkedHours(record.entryTime, record.exitTime)
+        const pct = Math.min(hours / 6, 1) * 100
+
+        style = {
+          background: `linear-gradient(135deg,
+            #22c55e ${pct}%,
+            #ef4444 ${pct}%)`,
+          color: 'white'
+        }
+      } else {
+        style = {
+          background: 'linear-gradient(135deg,#ef4444,#b91c1c)',
+          color: 'white'
+        }
       }
-      if(status==="today-active"){
-        bg = theme === 'dark' ? 'animate-blue-pulse text-blue-400 font-bold' : 'animate-blue-pulse text-blue-700 font-bold'
-      }
-      if(status==="absent"){
-        bg = theme === 'dark' ? 'bg-red-600 text-white' : 'bg-red-500 text-white'
-      }
-      if(status==="future"){
-        bg = theme === 'dark' ? 'bg-gray-700 text-gray-400' : 'bg-white text-gray-400'
-      }
-      days.push(
-        <div
+
+      cells.push(
+        <motion.div
           key={day}
-          className={`h-10 flex items-center justify-center 
-          rounded-lg font-medium transition-all ${bg} ${text}`}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          whileHover={{ scale: 1.08 }}
+          transition={{ duration: 0.25 }}
+          className="h-14 rounded-xl flex flex-col items-center justify-center
+          text-sm font-semibold shadow-lg backdrop-blur-md cursor-pointer"
+          style={style}
         >
           {day}
-        </div>
+          {label && <span className="text-[10px] opacity-80">{label}</span>}
+        </motion.div>
       )
     }
-    return days
+
+    return cells
   }
 
-  const monthNames=["January","February","March","April","May","June","July","August","September","October","November","December"]
+  if (loading) return <Loading />
 
-  if (loading) {
-    return (
-      <div className="mt-20">
-        <Loading />
-      </div>
-    );
-  }
+  const monthNames = [
+    'January','February','March','April','May','June',
+    'July','August','September','October','November','December'
+  ]
 
   return (
-    <>
-      {/* 🔥 Animation CSS */}
-      <style jsx global>{`
-        @keyframes pulseBlue {
-          0% {
-            background-color: ${theme === 'dark' ? '#374151' : '#ffffff'};
-          }
-          50% {
-            background-color: #3b82f6;
-          }
-          100% {
-            background-color: ${theme === 'dark' ? '#374151' : '#ffffff'};
-          }
-        }
-        .animate-blue-pulse {
-          animation: pulseBlue 2s ease-in-out infinite;
-        }
-      `}</style>
+    <div
+      className={`min-h-screen p-6 ${
+        theme === 'dark'
+          ? 'bg-gradient-to-br from-black to-gray-900'
+          : 'bg-gradient-to-br from-gray-100 to-white'
+      }`}
+    >
+      <div className="max-w-4xl mx-auto">
+        <h1
+          className={`text-3xl font-bold mb-6 ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}
+        >
+          📅 Attendance Calendar
+        </h1>
 
-      <div className={`min-h-screen p-4 ${theme === 'dark' ? 'bg-[#000000]' : 'bg-gray-50'}`}>
-        <div className="max-w-4xl mx-auto">
-          <h1 className={`text-3xl font-bold mb-6 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-            Attendance Calendar
-          </h1>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4 }}
+          className={`p-6 rounded-2xl shadow-2xl ${
+            theme === 'dark'
+              ? 'bg-white/10 backdrop-blur-xl'
+              : 'bg-white'
+          }`}
+        >
+          <div className="flex justify-between items-center mb-5 text-lg font-semibold">
+            <button
+              className="px-3 py-1 rounded-lg hover:bg-gray-200 dark:hover:bg-white/20"
+              onClick={() =>
+                setCurrentDate(
+                  new Date(currentDate.setMonth(currentDate.getMonth() - 1))
+                )
+              }
+            >
+              ⬅
+            </button>
 
-          <div className={`p-6 rounded-xl shadow ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
-            {/* Month Nav */}
-            <div className="flex justify-between mb-4">
-              <button
-                onClick={()=>setCurrentDate(
-                  new Date(currentDate.getFullYear(),
-                  currentDate.getMonth()-1,1))}
-                className={`px-3 py-1 rounded ${theme === 'dark' ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'}`}>⬅</button>
+            <b>
+              {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+            </b>
 
-              <h2 className={`font-semibold text-lg ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                {monthNames[currentDate.getMonth()]}
-                {" "}
-                {currentDate.getFullYear()}
-              </h2>
-
-              <button
-                onClick={()=>setCurrentDate(
-                  new Date(currentDate.getFullYear(),
-                  currentDate.getMonth()+1,1))}
-                className={`px-3 py-1 rounded ${theme === 'dark' ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'}`}>➡</button>
-            </div>
-
-            {/* Week */}
-            <div className={`grid grid-cols-7 text-center mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-              {['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
-                .map(d=><b key={d}>{d}</b>)}
-            </div>
-
-            {/* Days */}
-            <div className="grid grid-cols-7 gap-2">
-              {renderCalendar()}
-            </div>
-
-            {/* Legend */}
-            <div className={`mt-6 space-y-2 text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-              <p className={`flex items-center gap-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-                Present
-              </p>
-              <p className={`flex items-center gap-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
-                Today (Active - Animated)
-              </p>
-              <p className={`flex items-center gap-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                <span className="w-3 h-3 bg-red-500 rounded-full"></span>
-                Absent (Past)
-              </p>
-              <p className={`flex items-center gap-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                <span className={`w-3 h-3 ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-300'} rounded-full`}></span>
-                Future
-              </p>
-            </div>
+            <button
+              className="px-3 py-1 rounded-lg hover:bg-gray-200 dark:hover:bg-white/20"
+              onClick={() =>
+                setCurrentDate(
+                  new Date(currentDate.setMonth(currentDate.getMonth() + 1))
+                )
+              }
+            >
+              ➡
+            </button>
           </div>
-        </div>
+
+          <div className="grid grid-cols-7 text-center font-semibold mb-3 opacity-80">
+            {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
+              <div key={d}>{d}</div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-3">
+            {renderCalendar()}
+          </div>
+        </motion.div>
       </div>
-    </>
+    </div>
   )
 }
